@@ -10,6 +10,7 @@
 #include "../SDLogger/SDLogger.h"
 #include "../WiFiManager/WiFiManager.h"
 #include "../MQTTManager/MQTTManager.h"
+#include "../WebDashboard/WebDashboard.h"
 
 /**
  * ============================================================
@@ -62,6 +63,7 @@ private:
     SDLogger        _sdLogger;
     WiFiManager     _wifi;
     MQTTManager     _mqtt;
+    WebDashboard    _dashboard;
 
     // ========================================================
     //  System State
@@ -84,6 +86,7 @@ private:
     unsigned long _lastMqttPublish;
     unsigned long _lastStatusPublish;
     unsigned long _lastOfflineSync;
+    unsigned long _lastDashboardCleanup;
 
     // ========================================================
     //  Initialization Helpers
@@ -118,6 +121,10 @@ private:
     void publishDeliveryRecord(const DeliveryRecord& record);
     void handleDeliveryCompletion();
     void syncPendingDeliveries();
+    void pushDashboardData();
+
+    // Dashboard command callback
+    static void dashboardCommandHandler(const char* command);
 
     // ========================================================
     //  JSON Serialization

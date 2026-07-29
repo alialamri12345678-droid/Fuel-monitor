@@ -39,7 +39,7 @@
 
 // Meter factor from nameplate (pulses per cubic meter)
 // At max flow (100 m³/h): frequency = 100 * 6836 / 3600 ≈ 1899 Hz
-#define METER_FACTOR            6836.0f
+#define METER_FACTOR            7916.0f
 
 // Pulse measurement window (milliseconds)
 // Pulses are counted over this window, then converted to frequency

@@ -36,7 +36,8 @@ SystemManager::SystemManager()
       _lastLogWrite(0),
       _lastMqttPublish(0),
       _lastStatusPublish(0),
-      _lastOfflineSync(0)
+      _lastOfflineSync(0),
+      _lastDashboardCleanup(0)
 {
     _instance = this;
 }
@@ -68,6 +69,12 @@ bool SystemManager::begin()
     connectNetwork();
     connectMQTT();
     subscribeTopics();
+
+    // Start web dashboard (requires WiFi)
+    _dashboard.begin(80);
+    _dashboard.onCommand(dashboardCommandHandler);
+    LOG_INFO(TAG, "Dashboard URL: http://%s/",
+             _wifi.getIPAddress().toString().c_str());
 
     // Load persisted session total from NVS
     loadSessionTotal();
@@ -285,6 +292,17 @@ void SystemManager::update()
     {
         syncPendingDeliveries();
     }
+
+    // --------------------------------------------------------
+    //  9. WebSocket dashboard push (every 1 second)
+    // --------------------------------------------------------
+    if (timerExpired(_lastDashboardCleanup, 5000))
+    {
+        _dashboard.cleanupClients();
+    }
+
+    // Push data alongside MQTT publish (same 1s interval)
+    pushDashboardData();
 }
 
 // ============================================================
@@ -674,4 +692,74 @@ void SystemManager::saveSessionTotal()
 
     LOG_DEBUG(TAG, "Saved session total to NVS: %.2f liters",
               _sessionTotalLiters);
+}
+
+// ============================================================
+//  Web Dashboard — Data Push
+// ============================================================
+
+void SystemManager::pushDashboardData()
+{
+    if (_dashboard.getClientCount() == 0) return;
+
+    StaticJsonDocument<384> doc;
+
+    char timestamp[24];
+    _rtc.getTimestamp(timestamp, sizeof(timestamp));
+
+    float totalLiters = _sessionTotalLiters;
+    if (_delivery.getState() == DeliveryState::DELIVERING)
+    {
+        totalLiters += _delivery.getCurrentDeliveryLiters();
+    }
+
+    doc["device_id"]        = MQTT_DEVICE_ID;
+    doc["timestamp"]        = timestamp;
+    doc["frequency_hz"]     = serialized(String(_flowMeter.getFrequency(), 1));
+    doc["flow_rate"]        = serialized(String(_flowMeter.getFlowRate(), 2));
+    doc["total_liters"]     = serialized(String(totalLiters, 2));
+    doc["delivery_state"]   = deliveryStateToString(_delivery.getState());
+    doc["delivery_count"]   = _delivery.getDeliveryCount();
+    doc["delivery_liters"]  = serialized(String(
+        _delivery.getCurrentDeliveryLiters(), 2));
+    doc["delivery_duration"] = _delivery.getCurrentDeliveryDuration();
+
+    char buffer[512];
+    size_t written = serializeJson(doc, buffer, sizeof(buffer));
+
+    if (written > 0 && written < sizeof(buffer))
+    {
+        _dashboard.pushData(buffer);
+    }
+}
+
+// ============================================================
+//  Web Dashboard — Command Handler
+// ============================================================
+
+void SystemManager::dashboardCommandHandler(const char* command)
+{
+    if (!_instance) return;
+
+    if (strcmp(command, "reset_total") == 0)
+    {
+        _instance->_sessionTotalLiters = 0.0f;
+        _instance->saveSessionTotal();
+        LOG_INFO(TAG, "Total liters reset via dashboard");
+    }
+    else if (strcmp(command, "reset_deliveries") == 0)
+    {
+        // Reset the delivery counter in NVS
+        Preferences prefs;
+        prefs.begin("diesel", false);
+        prefs.putUInt("delivery_id", 0);
+        prefs.end();
+
+        LOG_INFO(TAG, "Delivery counter reset via dashboard — "
+                      "restart required for full effect");
+    }
+    else
+    {
+        LOG_WARNING(TAG, "Unknown dashboard command: %s", command);
+    }
 }
