@@ -8,7 +8,7 @@
  * ErrorHandler
  * ------------------------------------------------------------
  * Centralized error tracking for the Diesel Delivery
- * Verification & Monitoring System.
+ * Monitoring System.
  *
  * Provides static methods to set, clear, and query system
  * errors. Designed for integration with logging and MQTT
@@ -23,9 +23,6 @@
 enum class SystemError : uint8_t
 {
     NONE = 0,
-    ERROR_PULSE_INPUT_FAILURE,
-    ERROR_SD_FAILURE,
-    ERROR_RTC_FAILURE,
     ERROR_WIFI_FAILURE,
     ERROR_MQTT_FAILURE,
     ERROR_SENSOR_OUT_OF_RANGE
@@ -39,7 +36,7 @@ class ErrorHandler
 {
 public:
 
-    static constexpr uint8_t MAX_ERRORS = 6;
+    static constexpr uint8_t MAX_ERRORS = 3;
 
     /**
      * @brief Set an error flag.
@@ -110,12 +107,6 @@ public:
         {
             case SystemError::NONE:
                 return "NONE";
-            case SystemError::ERROR_PULSE_INPUT_FAILURE:
-                return "PULSE_INPUT_FAILURE";
-            case SystemError::ERROR_SD_FAILURE:
-                return "SD_FAILURE";
-            case SystemError::ERROR_RTC_FAILURE:
-                return "RTC_FAILURE";
             case SystemError::ERROR_WIFI_FAILURE:
                 return "WIFI_FAILURE";
             case SystemError::ERROR_MQTT_FAILURE:

@@ -4,9 +4,6 @@
 #include <Arduino.h>
 #include "../../utils/DataTypes.h"
 
-// Forward declaration to avoid circular includes
-class RTCManager;
-
 /**
  * ============================================================
  * DeliveryManager
@@ -37,10 +34,9 @@ public:
     DeliveryManager();
 
     /**
-     * @brief Initialize with reference to RTCManager for timestamps.
-     *        Loads persisted delivery ID from flash.
+     * @brief Initialize. Loads persisted delivery ID from flash.
      */
-    void begin(RTCManager& rtc);
+    void begin();
 
     /**
      * @brief Update state machine with latest sensor readings.
@@ -83,9 +79,12 @@ public:
      */
     uint32_t getDeliveryCount() const;
 
-private:
+    /**
+     * @brief Reset the total delivery count to zero.
+     */
+    void resetDeliveryCount();
 
-    RTCManager* _rtc;
+private:
 
     // State machine
     DeliveryState _state;
@@ -94,10 +93,9 @@ private:
     float    _deliveryLiters;       // Accumulated volume
     float    _lastFlowRate;         // Previous flow rate for trapezoidal integration
     unsigned long _deliveryStartMs; // millis() at delivery start
-    char     _startTimestamp[24];   // Start time from RTC
 
     // End detection
-    unsigned long _belowThresholdSince;  // millis() when current first dropped
+    unsigned long _belowThresholdSince;  // millis() when flow first dropped
     bool          _belowThresholdActive; // Currently counting down
 
     // Delivery records

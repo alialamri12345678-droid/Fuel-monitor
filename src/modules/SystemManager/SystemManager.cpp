@@ -21,27 +21,18 @@ bool ErrorHandler::_errors[ErrorHandler::MAX_ERRORS] = {false};
 // ============================================================
 
 SystemManager::SystemManager()
-    : _flowMeter(),
-      _rtc(),
-      _delivery(),
-      _sdLogger(),
+    : _delivery(),
       _wifi(),
       _mqtt(),
-#if CURRENT_FLOW_SOURCE == FLOW_SOURCE_MODBUS
       _modbus(Serial2, RS485_DE_RE_PIN),
       _flowModbus(_modbus),
       _lastModbusPoll(0),
-#endif
       _initialized(false),
-      _ntpSynced(false),
-      _ntpRequested(false),
       _mqttSubscribed(false),
       _sessionTotalLiters(0.0f),
       _lastSensorRead(0),
-      _lastLogWrite(0),
       _lastMqttPublish(0),
-      _lastStatusPublish(0),
-      _lastOfflineSync(0)
+      _lastStatusPublish(0)
 {
     _instance = this;
 }
@@ -62,7 +53,6 @@ bool SystemManager::begin()
     if (!initializeModules())
     {
         LOG_ERROR(TAG, "Module initialization failed");
-        // Continue anyway — system should be resilient
     }
 
     // Initialize hardware watchdog (10 second timeout, auto-reboot on hang)
@@ -76,6 +66,9 @@ bool SystemManager::begin()
 
     // Load persisted session total from NVS
     loadSessionTotal();
+
+    // Configure NTP
+    configTzTime("UTC0", "pool.ntp.org");
 
     _initialized = true;
 
@@ -91,44 +84,16 @@ bool SystemManager::initializeModules()
 {
     bool allOk = true;
 
-    // 1. RTC (needed by DeliveryManager for timestamps)
-    LOG_INFO(TAG, "Initializing RTC...");
-    if (!_rtc.begin())
-    {
-        LOG_ERROR(TAG, "RTC initialization failed — continuing without RTC");
-        allOk = false;
-    }
-
-    // 2. SD Logger
-    LOG_INFO(TAG, "Initializing SD Logger...");
-    if (!_sdLogger.begin(SD_CS_PIN))
-    {
-        LOG_ERROR(TAG, "SD Logger initialization failed — continuing without SD");
-        allOk = false;
-    }
-
-    // 3. Flow Meter
-    LOG_INFO(TAG, "Initializing Flow Meter...");
-#if CURRENT_FLOW_SOURCE == FLOW_SOURCE_MODBUS
-    // RS485 Modbus flow meter
-    LOG_INFO(TAG, "Flow source: MODBUS RTU (RS485)");
+    // 1. Flow Meter (Modbus RTU)
+    LOG_INFO(TAG, "Initializing Modbus Flow Meter...");
     _modbus.begin(MODBUS_BAUD_RATE);
     _flowModbus.begin(MODBUS_SLAVE_ID);
-#else
-    // Pulse/frequency flow meter
-    LOG_INFO(TAG, "Flow source: PULSE/FREQUENCY");
-    if (!_flowMeter.begin())
-    {
-        LOG_ERROR(TAG, "Flow Meter initialization failed!");
-        allOk = false;
-    }
-#endif
 
-    // 4. Delivery Manager (depends on RTC)
+    // 2. Delivery Manager
     LOG_INFO(TAG, "Initializing Delivery Manager...");
-    _delivery.begin(_rtc);
+    _delivery.begin();
 
-    // 5. MQTT
+    // 3. MQTT
     LOG_INFO(TAG, "Initializing MQTT...");
     _mqtt.begin(MQTT_BROKER, MQTT_PORT,
                 MQTT_USERNAME, MQTT_PASSWORD,
@@ -143,41 +108,6 @@ void SystemManager::connectNetwork()
     LOG_INFO(TAG, "Initiating WiFi connection...");
     _wifi.setHostname(WIFI_HOSTNAME);
     _wifi.begin(WIFI_SSID, WIFI_PASSWORD);
-}
-
-void SystemManager::startNTPSync()
-{
-    LOG_INFO(TAG, "Requesting NTP time sync (non-blocking)...");
-    configTzTime("UTC0", "pool.ntp.org");
-    _ntpRequested = true;
-}
-
-void SystemManager::checkNTPSync()
-{
-    // Called from update() — completely non-blocking
-    struct tm timeinfo;
-    if (getLocalTime(&timeinfo, 0))   // 0ms timeout = instant check
-    {
-        if (timeinfo.tm_year + 1900 >= 2024)
-        {
-            LOG_INFO(TAG, "NTP synced: %04d-%02d-%02d %02d:%02d:%02d",
-                     timeinfo.tm_year + 1900, timeinfo.tm_mon + 1,
-                     timeinfo.tm_mday,
-                     timeinfo.tm_hour, timeinfo.tm_min,
-                     timeinfo.tm_sec);
-
-            // Update RTC from NTP
-            DateTime dt(timeinfo.tm_year + 1900,
-                        timeinfo.tm_mon + 1,
-                        timeinfo.tm_mday,
-                        timeinfo.tm_hour,
-                        timeinfo.tm_min,
-                        timeinfo.tm_sec);
-            _rtc.adjustTime(dt);
-
-            _ntpSynced = true;
-        }
-    }
 }
 
 void SystemManager::connectMQTT()
@@ -223,19 +153,6 @@ void SystemManager::update()
     // --------------------------------------------------------
     _wifi.update();
 
-    // Non-blocking NTP sync: start request once, check each loop
-    if (_wifi.isConnected() && !_ntpSynced)
-    {
-        if (!_ntpRequested)
-        {
-            startNTPSync();
-        }
-        else
-        {
-            checkNTPSync();
-        }
-    }
-
     // --------------------------------------------------------
     //  2. MQTT monitoring (every cycle)
     // --------------------------------------------------------
@@ -264,15 +181,7 @@ void SystemManager::update()
     }
 
     // --------------------------------------------------------
-    //  4. SD card logging (every 1 second)
-    // --------------------------------------------------------
-    if (timerExpired(_lastLogWrite, LOG_INTERVAL_MS))
-    {
-        logToSD();
-    }
-
-    // --------------------------------------------------------
-    //  5. MQTT live data publish (every 1 second)
+    //  4. MQTT live data publish (every 1 second)
     // --------------------------------------------------------
     if (timerExpired(_lastMqttPublish, MQTT_PUBLISH_INTERVAL_MS))
     {
@@ -280,7 +189,7 @@ void SystemManager::update()
     }
 
     // --------------------------------------------------------
-    //  6. Status publish (every 30 seconds)
+    //  5. Status publish (every 30 seconds)
     // --------------------------------------------------------
     if (timerExpired(_lastStatusPublish, STATUS_PUBLISH_INTERVAL_MS))
     {
@@ -288,17 +197,9 @@ void SystemManager::update()
     }
 
     // --------------------------------------------------------
-    //  7. Delivery completion handling
+    //  6. Delivery completion handling
     // --------------------------------------------------------
     handleDeliveryCompletion();
-
-    // --------------------------------------------------------
-    //  8. Offline sync (every 5 seconds)
-    // --------------------------------------------------------
-    if (timerExpired(_lastOfflineSync, OFFLINE_SYNC_INTERVAL_MS))
-    {
-        syncPendingDeliveries();
-    }
 }
 
 // ============================================================
@@ -325,7 +226,6 @@ bool SystemManager::timerExpired(unsigned long& lastTime,
 
 void SystemManager::readSensors()
 {
-#if CURRENT_FLOW_SOURCE == FLOW_SOURCE_MODBUS
     // Modbus polling at its own interval (1 second)
     if (timerExpired(_lastModbusPoll, MODBUS_POLL_INTERVAL_MS))
     {
@@ -334,44 +234,10 @@ void SystemManager::readSensors()
 
     // Feed delivery manager with Modbus flow rate (L/min)
     _delivery.update(_flowModbus.getFlowLPM());
-#else
-    // Pulse-based flow meter
-    _flowMeter.update();
-    _delivery.update(_flowMeter.getFlowRate());
-#endif
-}
-
-void SystemManager::logToSD()
-{
-    if (!_sdLogger.isAvailable()) return;
-
-    // Get timestamp
-    char timestamp[24];
-    _rtc.getTimestamp(timestamp, sizeof(timestamp));
-
-    // Calculate total liters (session total + current delivery if active)
-    float totalLiters = _sessionTotalLiters;
-    if (_delivery.getState() == DeliveryState::DELIVERING)
-    {
-        totalLiters += _delivery.getCurrentDeliveryLiters();
-    }
-
-    _sdLogger.logFlowData(
-        timestamp,
-        _flowMeter.getFrequency(),
-        _flowMeter.getFlowRate(),
-        totalLiters);
 }
 
 void SystemManager::publishLiveData()
 {
-    float totalLiters = _sessionTotalLiters;
-    if (_delivery.getState() == DeliveryState::DELIVERING)
-    {
-        totalLiters += _delivery.getCurrentDeliveryLiters();
-    }
-
-#if CURRENT_FLOW_SOURCE == FLOW_SOURCE_MODBUS
     const auto& md = _flowModbus.getData();
     LOG_INFO(TAG, "Live: %.1f Hz | %.2f L/min | %.1f°C | "
                   "%.2f m/s | Cum: %.3f m³ | State: %s",
@@ -381,13 +247,6 @@ void SystemManager::publishLiveData()
              md.velocity,
              md.totalFlow,
              deliveryStateToString(_delivery.getState()));
-#else
-    LOG_INFO(TAG, "Live: %.1f Hz | %.2f L/min | Total: %.2f L | State: %s",
-             _flowMeter.getFrequency(),
-             _flowMeter.getFlowRate(),
-             totalLiters,
-             deliveryStateToString(_delivery.getState()));
-#endif
 
     if (!_mqtt.isConnected()) return;
 
@@ -427,14 +286,8 @@ void SystemManager::publishDeliveryRecord(const DeliveryRecord& record)
             {
                 LOG_INFO(TAG, "Delivery #%lu published to MQTT",
                          (unsigned long)record.deliveryId);
-                return;
             }
         }
-
-        // MQTT offline — buffer to SD for later sync
-        LOG_INFO(TAG, "MQTT offline — buffering delivery #%lu",
-                 (unsigned long)record.deliveryId);
-        _sdLogger.bufferPendingDelivery(record);
     }
 }
 
@@ -448,47 +301,8 @@ void SystemManager::handleDeliveryCompletion()
         _sessionTotalLiters += record.totalLiters;
         saveSessionTotal();
 
-        // Log to SD card (delivery summary)
-        _sdLogger.logDelivery(record);
-
-        // Publish or buffer for MQTT
+        // Publish to MQTT
         publishDeliveryRecord(record);
-    }
-}
-
-void SystemManager::syncPendingDeliveries()
-{
-    if (!_mqtt.isConnected()) return;
-
-    size_t pending = _sdLogger.getPendingDeliveryCount();
-    if (pending == 0) return;
-
-    LOG_INFO(TAG, "Syncing %d pending deliveries...", pending);
-
-    // Process up to 3 at a time to avoid blocking
-    for (size_t i = 0; i < 3 && i < pending; i++)
-    {
-        DeliveryRecord record;
-        if (_sdLogger.readPendingDelivery(record))
-        {
-            char buffer[512];
-            if (serializeDelivery(record, buffer, sizeof(buffer)))
-            {
-                char topic[MQTTManager::MAX_TOPIC_LEN];
-                _mqtt.getDeliveryTopic(topic, sizeof(topic));
-
-                if (_mqtt.publish(topic, buffer))
-                {
-                    LOG_INFO(TAG, "Synced pending delivery #%lu",
-                             (unsigned long)record.deliveryId);
-                }
-                else
-                {
-                    LOG_WARNING(TAG, "Failed to sync — stopping");
-                    break;
-                }
-            }
-        }
     }
 }
 
@@ -496,12 +310,31 @@ void SystemManager::syncPendingDeliveries()
 //  JSON Serialization
 // ============================================================
 
+static void getTimestampString(char* buf, size_t len)
+{
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo, 0))
+    {
+        if (timeinfo.tm_year + 1900 >= 2024)
+        {
+            snprintf(buf, len, "%04d-%02d-%02d %02d:%02d:%02d",
+                     timeinfo.tm_year + 1900, timeinfo.tm_mon + 1,
+                     timeinfo.tm_mday,
+                     timeinfo.tm_hour, timeinfo.tm_min,
+                     timeinfo.tm_sec);
+            return;
+        }
+    }
+    // Fallback to uptime
+    snprintf(buf, len, "uptime:%lu", (unsigned long)(millis()/1000));
+}
+
 bool SystemManager::serializeLiveData(char* buffer, size_t len)
 {
     StaticJsonDocument<384> doc;
 
-    char timestamp[24];
-    _rtc.getTimestamp(timestamp, sizeof(timestamp));
+    char timestamp[32];
+    getTimestampString(timestamp, sizeof(timestamp));
 
     float totalLiters = _sessionTotalLiters;
     if (_delivery.getState() == DeliveryState::DELIVERING)
@@ -516,7 +349,6 @@ bool SystemManager::serializeLiveData(char* buffer, size_t len)
     doc["delivery_liters"]= serialized(String(_delivery.getCurrentDeliveryLiters(), 2));
     doc["delivery_duration"] = _delivery.getCurrentDeliveryDuration();
 
-#if CURRENT_FLOW_SOURCE == FLOW_SOURCE_MODBUS
     const auto& md = _flowModbus.getData();
     doc["frequency_hz"]   = serialized(String(md.frequency, 1));
     doc["flow_rate"]      = serialized(String(_flowModbus.getFlowLPM(), 2));
@@ -527,12 +359,6 @@ bool SystemManager::serializeLiveData(char* buffer, size_t len)
     doc["cumulative_m3"]  = serialized(String(md.totalFlow, 3));
     doc["flow_unit"]      = md.flowUnitStr;
     doc["modbus_online"]  = _flowModbus.isOnline();
-#else
-    doc["frequency_hz"]   = serialized(String(_flowMeter.getFrequency(), 1));
-    doc["flow_rate"]      = serialized(String(_flowMeter.getFlowRate(), 2));
-    doc["total_liters"]   = serialized(String(totalLiters, 2));
-#endif
-
 
     size_t written = serializeJson(doc, buffer, len);
     return (written > 0 && written < len);
@@ -558,8 +384,8 @@ bool SystemManager::serializeStatus(char* buffer, size_t len)
 {
     StaticJsonDocument<512> doc;
 
-    char timestamp[24];
-    _rtc.getTimestamp(timestamp, sizeof(timestamp));
+    char timestamp[32];
+    getTimestampString(timestamp, sizeof(timestamp));
 
     doc["device_id"]    = MQTT_DEVICE_ID;
     doc["timestamp"]    = timestamp;
@@ -574,16 +400,12 @@ bool SystemManager::serializeStatus(char* buffer, size_t len)
 
     // Hardware status
     JsonObject hw = doc.createNestedObject("hardware");
-    hw["pulse_ok"]      = !ErrorHandler::hasError(SystemError::ERROR_PULSE_INPUT_FAILURE);
-    hw["sd_ok"]         = !ErrorHandler::hasError(SystemError::ERROR_SD_FAILURE);
-    hw["rtc_ok"]        = !ErrorHandler::hasError(SystemError::ERROR_RTC_FAILURE);
     hw["sensor_ok"]     = !ErrorHandler::hasError(SystemError::ERROR_SENSOR_OUT_OF_RANGE);
 
     // System info
     doc["free_heap"]    = ESP.getFreeHeap();
     doc["uptime_s"]     = millis() / 1000;
     doc["deliveries"]   = _delivery.getDeliveryCount();
-    doc["pending_sync"] = _sdLogger.getPendingDeliveryCount();
 
     // Active errors
     char errStr[128];
@@ -657,21 +479,11 @@ void SystemManager::handleMQTTMessage(
             LOG_INFO(TAG, "Session total reset via MQTT command");
             cmdOk = true;
         }
-        else if (strcmp(cmd, "set_time") == 0)
+        else if (strcmp(cmd, "reset_deliveries") == 0)
         {
-            // Example: {"command":"set_time","year":2026,"month":7,...}
-            if (doc.containsKey("year"))
-            {
-                DateTime dt(
-                    doc["year"]   | 2026,
-                    doc["month"]  | 1,
-                    doc["day"]    | 1,
-                    doc["hour"]   | 0,
-                    doc["minute"] | 0,
-                    doc["second"] | 0);
-                _rtc.adjustTime(dt);
-                cmdOk = true;
-            }
+            _delivery.resetDeliveryCount();
+            LOG_INFO(TAG, "Delivery count reset via MQTT command");
+            cmdOk = true;
         }
         else if (strcmp(cmd, "status") == 0)
         {
@@ -727,5 +539,3 @@ void SystemManager::saveSessionTotal()
     LOG_DEBUG(TAG, "Saved session total to NVS: %.2f liters",
               _sessionTotalLiters);
 }
-
-// ============================================================

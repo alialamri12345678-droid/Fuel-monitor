@@ -1,5 +1,4 @@
 #include "DeliveryManager.h"
-#include "../RTCManager/RTCManager.h"
 #include "../../config/Config.h"
 #include "../../utils/Logger.h"
 
@@ -12,8 +11,7 @@ static const char* PREFS_NAMESPACE = "delivery";
 static const char* PREFS_KEY_ID   = "next_id";
 
 DeliveryManager::DeliveryManager()
-    : _rtc(nullptr),
-      _state(DeliveryState::IDLE),
+    : _state(DeliveryState::IDLE),
       _deliveryLiters(0.0f),
       _lastFlowRate(0.0f),
       _deliveryStartMs(0),
@@ -23,12 +21,10 @@ DeliveryManager::DeliveryManager()
       _deliveryCount(0),
       _lastUpdateMs(0)
 {
-    _startTimestamp[0] = '\0';
 }
 
-void DeliveryManager::begin(RTCManager& rtc)
+void DeliveryManager::begin()
 {
-    _rtc = &rtc;
     _state = DeliveryState::IDLE;
     _lastUpdateMs = millis();
 
@@ -172,6 +168,13 @@ uint32_t DeliveryManager::getDeliveryCount() const
     return _deliveryCount;
 }
 
+void DeliveryManager::resetDeliveryCount()
+{
+    _deliveryCount = 0;
+    saveDeliveryId();
+    LOG_INFO(TAG, "Delivery count reset to 0");
+}
+
 // ============================================================
 //  Private — State Transitions
 // ============================================================
@@ -184,35 +187,17 @@ void DeliveryManager::startDelivery()
     _deliveryStartMs = millis();
     _belowThresholdActive = false;
 
-    // Capture start timestamp from RTC
-    if (_rtc != nullptr)
-    {
-        _rtc->getTimestamp(_startTimestamp, sizeof(_startTimestamp));
-    }
-    else
-    {
-        snprintf(_startTimestamp, sizeof(_startTimestamp),
-                 "1970-01-01 00:00:00");
-    }
+    // Use uptime as start timestamp
+    unsigned long uptimeSec = millis() / 1000;
+    snprintf(_lastRecord.startTime, sizeof(_lastRecord.startTime),
+             "uptime:%lu", uptimeSec);
 
     LOG_INFO(TAG, "=== DELIVERY STARTED ===");
-    LOG_INFO(TAG, "Start time: %s", _startTimestamp);
+    LOG_INFO(TAG, "Start uptime: %lu s", uptimeSec);
 }
 
 void DeliveryManager::completeDelivery()
 {
-    // Capture end timestamp
-    char endTimestamp[24];
-    if (_rtc != nullptr)
-    {
-        _rtc->getTimestamp(endTimestamp, sizeof(endTimestamp));
-    }
-    else
-    {
-        snprintf(endTimestamp, sizeof(endTimestamp),
-                 "1970-01-01 00:00:00");
-    }
-
     // Calculate duration
     uint32_t durationMs = millis() - _deliveryStartMs;
     uint32_t durationSec = durationMs / 1000;
@@ -223,12 +208,11 @@ void DeliveryManager::completeDelivery()
 
     // Build delivery record
     _lastRecord.deliveryId = _deliveryCount;
-    strncpy(_lastRecord.startTime, _startTimestamp,
-            sizeof(_lastRecord.startTime) - 1);
-    _lastRecord.startTime[sizeof(_lastRecord.startTime) - 1] = '\0';
-    strncpy(_lastRecord.endTime, endTimestamp,
-            sizeof(_lastRecord.endTime) - 1);
-    _lastRecord.endTime[sizeof(_lastRecord.endTime) - 1] = '\0';
+
+    unsigned long uptimeSec = millis() / 1000;
+    snprintf(_lastRecord.endTime, sizeof(_lastRecord.endTime),
+             "uptime:%lu", uptimeSec);
+
     _lastRecord.durationSeconds = durationSec;
     _lastRecord.totalLiters = _deliveryLiters;
 
@@ -236,8 +220,6 @@ void DeliveryManager::completeDelivery()
 
     LOG_INFO(TAG, "=== DELIVERY COMPLETED ===");
     LOG_INFO(TAG, "  ID:        %lu", (unsigned long)_lastRecord.deliveryId);
-    LOG_INFO(TAG, "  Start:     %s", _lastRecord.startTime);
-    LOG_INFO(TAG, "  End:       %s", _lastRecord.endTime);
     LOG_INFO(TAG, "  Duration:  %lu seconds", (unsigned long)durationSec);
     LOG_INFO(TAG, "  Volume:    %.2f liters", _lastRecord.totalLiters);
 
