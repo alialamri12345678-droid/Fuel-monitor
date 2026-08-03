@@ -10,7 +10,13 @@
 #include "../SDLogger/SDLogger.h"
 #include "../WiFiManager/WiFiManager.h"
 #include "../MQTTManager/MQTTManager.h"
-#include "../WebDashboard/WebDashboard.h"
+
+#include "../../config/Config.h"
+
+#if CURRENT_FLOW_SOURCE == FLOW_SOURCE_MODBUS
+#include "../ModbusManager/ModbusManager.h"
+#include "../FlowMeterModbus/FlowMeterModbus.h"
+#endif
 
 /**
  * ============================================================
@@ -63,7 +69,12 @@ private:
     SDLogger        _sdLogger;
     WiFiManager     _wifi;
     MQTTManager     _mqtt;
-    WebDashboard    _dashboard;
+
+#if CURRENT_FLOW_SOURCE == FLOW_SOURCE_MODBUS
+    ModbusManager     _modbus;
+    FlowMeterModbus   _flowModbus;
+    unsigned long     _lastModbusPoll;
+#endif
 
     // ========================================================
     //  System State
@@ -86,7 +97,6 @@ private:
     unsigned long _lastMqttPublish;
     unsigned long _lastStatusPublish;
     unsigned long _lastOfflineSync;
-    unsigned long _lastDashboardCleanup;
 
     // ========================================================
     //  Initialization Helpers
@@ -121,10 +131,6 @@ private:
     void publishDeliveryRecord(const DeliveryRecord& record);
     void handleDeliveryCompletion();
     void syncPendingDeliveries();
-    void pushDashboardData();
-
-    // Dashboard command callback
-    static void dashboardCommandHandler(const char* command);
 
     // ========================================================
     //  JSON Serialization

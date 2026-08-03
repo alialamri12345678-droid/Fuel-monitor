@@ -27,6 +27,11 @@ SystemManager::SystemManager()
       _sdLogger(),
       _wifi(),
       _mqtt(),
+#if CURRENT_FLOW_SOURCE == FLOW_SOURCE_MODBUS
+      _modbus(Serial2, RS485_DE_RE_PIN),
+      _flowModbus(_modbus),
+      _lastModbusPoll(0),
+#endif
       _initialized(false),
       _ntpSynced(false),
       _ntpRequested(false),
@@ -36,8 +41,7 @@ SystemManager::SystemManager()
       _lastLogWrite(0),
       _lastMqttPublish(0),
       _lastStatusPublish(0),
-      _lastOfflineSync(0),
-      _lastDashboardCleanup(0)
+      _lastOfflineSync(0)
 {
     _instance = this;
 }
@@ -69,12 +73,6 @@ bool SystemManager::begin()
     connectNetwork();
     connectMQTT();
     subscribeTopics();
-
-    // Start web dashboard (requires WiFi)
-    _dashboard.begin(80);
-    _dashboard.onCommand(dashboardCommandHandler);
-    LOG_INFO(TAG, "Dashboard URL: http://%s/",
-             _wifi.getIPAddress().toString().c_str());
 
     // Load persisted session total from NVS
     loadSessionTotal();
@@ -109,13 +107,22 @@ bool SystemManager::initializeModules()
         allOk = false;
     }
 
-    // 3. Flow Meter (ADC)
+    // 3. Flow Meter
     LOG_INFO(TAG, "Initializing Flow Meter...");
+#if CURRENT_FLOW_SOURCE == FLOW_SOURCE_MODBUS
+    // RS485 Modbus flow meter
+    LOG_INFO(TAG, "Flow source: MODBUS RTU (RS485)");
+    _modbus.begin(MODBUS_BAUD_RATE);
+    _flowModbus.begin(MODBUS_SLAVE_ID);
+#else
+    // Pulse/frequency flow meter
+    LOG_INFO(TAG, "Flow source: PULSE/FREQUENCY");
     if (!_flowMeter.begin())
     {
         LOG_ERROR(TAG, "Flow Meter initialization failed!");
         allOk = false;
     }
+#endif
 
     // 4. Delivery Manager (depends on RTC)
     LOG_INFO(TAG, "Initializing Delivery Manager...");
@@ -292,17 +299,6 @@ void SystemManager::update()
     {
         syncPendingDeliveries();
     }
-
-    // --------------------------------------------------------
-    //  9. WebSocket dashboard push (every 1 second)
-    // --------------------------------------------------------
-    if (timerExpired(_lastDashboardCleanup, 5000))
-    {
-        _dashboard.cleanupClients();
-    }
-
-    // Push data alongside MQTT publish (same 1s interval)
-    pushDashboardData();
 }
 
 // ============================================================
@@ -329,11 +325,20 @@ bool SystemManager::timerExpired(unsigned long& lastTime,
 
 void SystemManager::readSensors()
 {
-    // Update flow meter (pulse count + frequency + convert)
-    _flowMeter.update();
+#if CURRENT_FLOW_SOURCE == FLOW_SOURCE_MODBUS
+    // Modbus polling at its own interval (1 second)
+    if (timerExpired(_lastModbusPoll, MODBUS_POLL_INTERVAL_MS))
+    {
+        _flowModbus.update();
+    }
 
-    // Update delivery state machine
+    // Feed delivery manager with Modbus flow rate (L/min)
+    _delivery.update(_flowModbus.getFlowLPM());
+#else
+    // Pulse-based flow meter
+    _flowMeter.update();
     _delivery.update(_flowMeter.getFlowRate());
+#endif
 }
 
 void SystemManager::logToSD()
@@ -366,12 +371,23 @@ void SystemManager::publishLiveData()
         totalLiters += _delivery.getCurrentDeliveryLiters();
     }
 
-    // Always log live data to the serial monitor
+#if CURRENT_FLOW_SOURCE == FLOW_SOURCE_MODBUS
+    const auto& md = _flowModbus.getData();
+    LOG_INFO(TAG, "Live: %.1f Hz | %.2f L/min | %.1f°C | "
+                  "%.2f m/s | Cum: %.3f m³ | State: %s",
+             md.frequency,
+             _flowModbus.getFlowLPM(),
+             md.temperature,
+             md.velocity,
+             md.totalFlow,
+             deliveryStateToString(_delivery.getState()));
+#else
     LOG_INFO(TAG, "Live: %.1f Hz | %.2f L/min | Total: %.2f L | State: %s",
              _flowMeter.getFrequency(),
              _flowMeter.getFlowRate(),
              totalLiters,
              deliveryStateToString(_delivery.getState()));
+#endif
 
     if (!_mqtt.isConnected()) return;
 
@@ -495,10 +511,28 @@ bool SystemManager::serializeLiveData(char* buffer, size_t len)
 
     doc["device_id"]      = MQTT_DEVICE_ID;
     doc["timestamp"]      = timestamp;
+    doc["delivery_state"] = deliveryStateToString(_delivery.getState());
+    doc["delivery_count"] = _delivery.getDeliveryCount();
+    doc["delivery_liters"]= serialized(String(_delivery.getCurrentDeliveryLiters(), 2));
+    doc["delivery_duration"] = _delivery.getCurrentDeliveryDuration();
+
+#if CURRENT_FLOW_SOURCE == FLOW_SOURCE_MODBUS
+    const auto& md = _flowModbus.getData();
+    doc["frequency_hz"]   = serialized(String(md.frequency, 1));
+    doc["flow_rate"]      = serialized(String(_flowModbus.getFlowLPM(), 2));
+    doc["total_liters"]   = serialized(String(md.totalFlow * 1000.0, 2));
+    doc["temperature"]    = serialized(String(md.temperature, 1));
+    doc["velocity"]       = serialized(String(md.velocity, 2));
+    doc["flow_m3h"]       = serialized(String(md.flowRate, 3));
+    doc["cumulative_m3"]  = serialized(String(md.totalFlow, 3));
+    doc["flow_unit"]      = md.flowUnitStr;
+    doc["modbus_online"]  = _flowModbus.isOnline();
+#else
     doc["frequency_hz"]   = serialized(String(_flowMeter.getFrequency(), 1));
     doc["flow_rate"]      = serialized(String(_flowMeter.getFlowRate(), 2));
     doc["total_liters"]   = serialized(String(totalLiters, 2));
-    doc["delivery_state"] = deliveryStateToString(_delivery.getState());
+#endif
+
 
     size_t written = serializeJson(doc, buffer, len);
     return (written > 0 && written < len);
@@ -695,71 +729,3 @@ void SystemManager::saveSessionTotal()
 }
 
 // ============================================================
-//  Web Dashboard — Data Push
-// ============================================================
-
-void SystemManager::pushDashboardData()
-{
-    if (_dashboard.getClientCount() == 0) return;
-
-    StaticJsonDocument<384> doc;
-
-    char timestamp[24];
-    _rtc.getTimestamp(timestamp, sizeof(timestamp));
-
-    float totalLiters = _sessionTotalLiters;
-    if (_delivery.getState() == DeliveryState::DELIVERING)
-    {
-        totalLiters += _delivery.getCurrentDeliveryLiters();
-    }
-
-    doc["device_id"]        = MQTT_DEVICE_ID;
-    doc["timestamp"]        = timestamp;
-    doc["frequency_hz"]     = serialized(String(_flowMeter.getFrequency(), 1));
-    doc["flow_rate"]        = serialized(String(_flowMeter.getFlowRate(), 2));
-    doc["total_liters"]     = serialized(String(totalLiters, 2));
-    doc["delivery_state"]   = deliveryStateToString(_delivery.getState());
-    doc["delivery_count"]   = _delivery.getDeliveryCount();
-    doc["delivery_liters"]  = serialized(String(
-        _delivery.getCurrentDeliveryLiters(), 2));
-    doc["delivery_duration"] = _delivery.getCurrentDeliveryDuration();
-
-    char buffer[512];
-    size_t written = serializeJson(doc, buffer, sizeof(buffer));
-
-    if (written > 0 && written < sizeof(buffer))
-    {
-        _dashboard.pushData(buffer);
-    }
-}
-
-// ============================================================
-//  Web Dashboard — Command Handler
-// ============================================================
-
-void SystemManager::dashboardCommandHandler(const char* command)
-{
-    if (!_instance) return;
-
-    if (strcmp(command, "reset_total") == 0)
-    {
-        _instance->_sessionTotalLiters = 0.0f;
-        _instance->saveSessionTotal();
-        LOG_INFO(TAG, "Total liters reset via dashboard");
-    }
-    else if (strcmp(command, "reset_deliveries") == 0)
-    {
-        // Reset the delivery counter in NVS
-        Preferences prefs;
-        prefs.begin("diesel", false);
-        prefs.putUInt("delivery_id", 0);
-        prefs.end();
-
-        LOG_INFO(TAG, "Delivery counter reset via dashboard — "
-                      "restart required for full effect");
-    }
-    else
-    {
-        LOG_WARNING(TAG, "Unknown dashboard command: %s", command);
-    }
-}

@@ -39,7 +39,7 @@ public:
     /**
      * Initialize Logger with baud rate and default level.
      */
-    static void begin(uint32_t baudRate = 115200,
+    static void begin(uint32_t baudRate = 9600,
                       Level level = Level::INFO);
 
     /**

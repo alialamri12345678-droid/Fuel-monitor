@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Diesel Delivery Monitor</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -22,10 +23,9 @@
     --accent-amber: #f59e0b;
     --accent-red: #ef4444;
     --accent-purple: #8b5cf6;
+    --accent-orange: #f97316;
+    --accent-rose: #f43f5e;
     --glow-blue: rgba(59, 130, 246, 0.15);
-    --glow-cyan: rgba(6, 182, 212, 0.15);
-    --glow-green: rgba(16, 185, 129, 0.15);
-    --glow-amber: rgba(245, 158, 11, 0.15);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -38,7 +38,6 @@
     overflow-x: hidden;
   }
 
-  /* Animated background gradient */
   body::before {
     content: '';
     position: fixed;
@@ -57,12 +56,11 @@
   .container {
     position: relative;
     z-index: 1;
-    max-width: 1000px;
+    max-width: 1100px;
     margin: 0 auto;
     padding: 24px 20px;
   }
 
-  /* Header */
   .header {
     display: flex;
     align-items: center;
@@ -70,6 +68,8 @@
     margin-bottom: 32px;
     padding-bottom: 20px;
     border-bottom: 1px solid var(--border-card);
+    flex-wrap: wrap;
+    gap: 12px;
   }
   .header-left {
     display: flex;
@@ -97,7 +97,12 @@
     margin-top: 2px;
   }
 
-  /* Connection badge */
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   .conn-badge {
     display: flex; align-items: center; gap: 8px;
     padding: 6px 14px;
@@ -136,26 +141,107 @@
     50% { opacity: 0.4; }
   }
 
-  /* Card grid */
+  /* Settings panel */
+  .settings-toggle {
+    padding: 6px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-card);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .settings-toggle:hover {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+  }
+
+  .settings-panel {
+    display: none;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+    backdrop-filter: blur(12px);
+  }
+  .settings-panel.open { display: block; }
+  .settings-panel h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+  }
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .settings-field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .settings-field input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    background: rgba(0,0,0,0.3);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .settings-field input:focus {
+    border-color: var(--accent-blue);
+  }
+  .settings-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    padding-left: 4px;
+  }
+
   .grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 16px;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
   }
-  @media (max-width: 640px) {
+  .grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  @media (max-width: 768px) {
     .grid { grid-template-columns: repeat(2, 1fr); }
-    .grid .card:last-child { grid-column: span 2; }
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 400px) {
+    .grid { grid-template-columns: 1fr; }
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
   }
 
-  /* Cards */
   .card {
     background: var(--bg-card);
     border: 1px solid var(--border-card);
     border-radius: 16px;
     padding: 20px;
     backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
@@ -200,30 +286,27 @@
     margin-top: 6px;
   }
 
-  /* Card accent colors */
-  .card.freq { --card-color: var(--accent-cyan); }
+  .grid-4 .card-value { font-size: 26px; }
+
   .card.freq::before { background: linear-gradient(90deg, var(--accent-cyan), transparent); }
   .card.freq .card-value { color: var(--accent-cyan); }
-
-  .card.flow { --card-color: var(--accent-blue); }
   .card.flow::before { background: linear-gradient(90deg, var(--accent-blue), transparent); }
   .card.flow .card-value { color: var(--accent-blue); }
-
-  .card.total { --card-color: var(--accent-green); }
   .card.total::before { background: linear-gradient(90deg, var(--accent-green), transparent); }
   .card.total .card-value { color: var(--accent-green); }
-
-  .card.state { --card-color: var(--accent-amber); }
+  .card.temp::before { background: linear-gradient(90deg, var(--accent-orange), transparent); }
+  .card.temp .card-value { color: var(--accent-orange); }
+  .card.velocity::before { background: linear-gradient(90deg, var(--accent-rose), transparent); }
+  .card.velocity .card-value { color: var(--accent-rose); }
+  .card.flowm3::before { background: linear-gradient(90deg, var(--accent-purple), transparent); }
+  .card.flowm3 .card-value { color: var(--accent-purple); }
+  .card.cumul::before { background: linear-gradient(90deg, var(--accent-green), transparent); }
+  .card.cumul .card-value { color: var(--accent-green); }
   .card.state::before { background: linear-gradient(90deg, var(--accent-amber), transparent); }
-
-  .card.delivery { --card-color: var(--accent-purple); }
   .card.delivery::before { background: linear-gradient(90deg, var(--accent-purple), transparent); }
   .card.delivery .card-value { color: var(--accent-purple); }
-
-  .card.duration { --card-color: var(--text-secondary); }
   .card.duration::before { background: linear-gradient(90deg, var(--text-secondary), transparent); }
 
-  /* State badge */
   .state-badge {
     display: inline-flex;
     align-items: center;
@@ -256,7 +339,27 @@
     50% { box-shadow: 0 0 20px rgba(245,158,11,0.25); }
   }
 
-  /* Delivery liters (sub-card during delivery) */
+  .modbus-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+  .modbus-badge.online {
+    background: rgba(16, 185, 129, 0.08);
+    color: var(--accent-green);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+  }
+  .modbus-badge.offline {
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--accent-red);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+  }
+
   .delivery-info {
     margin-top: 24px;
     padding: 16px 20px;
@@ -280,7 +383,6 @@
     color: var(--accent-amber);
   }
 
-  /* Action buttons */
   .actions {
     display: flex;
     gap: 12px;
@@ -289,7 +391,7 @@
   }
   .btn {
     flex: 1;
-    min-width: 180px;
+    min-width: 160px;
     padding: 14px 20px;
     border: 1px solid var(--border-card);
     border-radius: 12px;
@@ -309,24 +411,13 @@
     box-shadow: 0 4px 16px rgba(0,0,0,0.3);
   }
   .btn:active { transform: translateY(0); }
-  .btn.danger {
-    border-color: rgba(239, 68, 68, 0.2);
-    color: var(--accent-red);
-  }
-  .btn.danger:hover {
-    background: rgba(239, 68, 68, 0.08);
-    border-color: rgba(239, 68, 68, 0.35);
-  }
-  .btn.warn {
-    border-color: rgba(245, 158, 11, 0.2);
-    color: var(--accent-amber);
-  }
-  .btn.warn:hover {
-    background: rgba(245, 158, 11, 0.08);
-    border-color: rgba(245, 158, 11, 0.35);
-  }
+  .btn.danger { border-color: rgba(239,68,68,0.2); color: var(--accent-red); }
+  .btn.danger:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.35); }
+  .btn.warn { border-color: rgba(245,158,11,0.2); color: var(--accent-amber); }
+  .btn.warn:hover { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.35); }
+  .btn.info { border-color: rgba(6,182,212,0.2); color: var(--accent-cyan); }
+  .btn.info:hover { background: rgba(6,182,212,0.08); border-color: rgba(6,182,212,0.35); }
 
-  /* Toast notification */
   .toast {
     position: fixed;
     bottom: 24px;
@@ -344,12 +435,8 @@
     z-index: 100;
     backdrop-filter: blur(12px);
   }
-  .toast.show {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  .toast.show { opacity: 1; transform: translateY(0); }
 
-  /* Footer */
   .footer {
     margin-top: 32px;
     text-align: center;
@@ -367,15 +454,57 @@
   <div class="header">
     <div class="header-left">
       <div class="header-icon">⛽</div>
-      <h1>Diesel Delivery Monitor<span>Real-time Dashboard</span></h1>
+      <h1>Diesel Delivery Monitor<span>Real-time Dashboard via MQTT</span></h1>
     </div>
-    <div class="conn-badge disconnected" id="connBadge">
-      <div class="conn-dot"></div>
-      <span id="connText">Disconnected</span>
+    <div class="header-right">
+      <div class="modbus-badge offline" id="modbusBadge">
+        <span>RS485</span>
+        <span id="modbusText">--</span>
+      </div>
+      <div class="conn-badge disconnected" id="connBadge">
+        <div class="conn-dot"></div>
+        <span id="connText">Disconnected</span>
+      </div>
+      <button class="settings-toggle" id="settingsBtn" onclick="toggleSettings()">⚙</button>
     </div>
   </div>
 
-  <!-- Primary metrics -->
+  <!-- Settings Panel -->
+  <div class="settings-panel" id="settingsPanel">
+    <h3>⚙ MQTT Connection Settings</h3>
+    <div class="settings-grid">
+      <div class="settings-field">
+        <label>Broker Host</label>
+        <input type="text" id="cfgBroker" value="broker.emqx.io">
+      </div>
+      <div class="settings-field">
+        <label>WebSocket Port</label>
+        <input type="number" id="cfgPort" value="8083">
+      </div>
+      <div class="settings-field">
+        <label>Topic Prefix</label>
+        <input type="text" id="cfgPrefix" value="diesel/device">
+      </div>
+      <div class="settings-field">
+        <label>Device ID</label>
+        <input type="text" id="cfgDeviceId" value="DIESEL001">
+      </div>
+      <div class="settings-field">
+        <label>Username (optional)</label>
+        <input type="text" id="cfgUser" value="">
+      </div>
+      <div class="settings-field">
+        <label>Password (optional)</label>
+        <input type="password" id="cfgPass" value="">
+      </div>
+    </div>
+    <div class="settings-actions">
+      <button class="btn info" onclick="saveAndReconnect()">🔗 Save & Reconnect</button>
+    </div>
+  </div>
+
+  <!-- Primary Flow Metrics -->
+  <div class="section-label">📊 Flow Metrics</div>
   <div class="grid">
     <div class="card freq">
       <div class="card-label"><span class="icon">〜</span> Frequency</div>
@@ -394,7 +523,33 @@
     </div>
   </div>
 
-  <!-- Secondary metrics -->
+  <!-- Modbus Extended Metrics -->
+  <div class="section-label">🔌 Transmitter Data</div>
+  <div class="grid grid-4">
+    <div class="card temp">
+      <div class="card-label"><span class="icon">🌡</span> Temperature</div>
+      <div class="card-value" id="temp">--</div>
+      <div class="card-unit">°C</div>
+    </div>
+    <div class="card velocity">
+      <div class="card-label"><span class="icon">→</span> Velocity</div>
+      <div class="card-value" id="velocity">--</div>
+      <div class="card-unit">m/s</div>
+    </div>
+    <div class="card flowm3">
+      <div class="card-label"><span class="icon">⬡</span> Flow Rate</div>
+      <div class="card-value" id="flowm3">--</div>
+      <div class="card-unit">m³/h</div>
+    </div>
+    <div class="card cumul">
+      <div class="card-label"><span class="icon">Σ</span> Cumulative</div>
+      <div class="card-value" id="cumul">--</div>
+      <div class="card-unit">m³</div>
+    </div>
+  </div>
+
+  <!-- Delivery Metrics -->
+  <div class="section-label">🚛 Delivery Status</div>
   <div class="grid">
     <div class="card state">
       <div class="card-label"><span class="icon">◉</span> Delivery State</div>
@@ -425,6 +580,9 @@
     <button class="btn warn" onclick="sendCmd('reset_total')">
       🔄 Clear Total Liters
     </button>
+    <button class="btn info" onclick="sendCmd('clear_cumulative')">
+      🔄 Clear Cumulative (Meter)
+    </button>
     <button class="btn danger" onclick="sendCmd('reset_deliveries')">
       ⚠ Reset Delivery Counter
     </button>
@@ -437,45 +595,111 @@
   </div>
 </div>
 
-<!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
-  let ws;
-  let reconnectTimer;
+  let client = null;
+  let dataTopic = '';
+  let cmdTopic = '';
 
-  function connect() {
-    const host = window.location.hostname;
-    const port = window.location.port || '80';
-    ws = new WebSocket(`ws://${host}:${port}/ws`);
-
-    ws.onopen = () => {
-      setConnected(true);
-      clearTimeout(reconnectTimer);
-    };
-
-    ws.onclose = () => {
-      setConnected(false);
-      reconnectTimer = setTimeout(connect, 2000);
-    };
-
-    ws.onerror = () => {
-      ws.close();
-    };
-
-    ws.onmessage = (e) => {
+  // Load saved settings from localStorage
+  function loadSettings() {
+    const saved = localStorage.getItem('mqtt_settings');
+    if (saved) {
       try {
-        const d = JSON.parse(e.data);
+        const s = JSON.parse(saved);
+        document.getElementById('cfgBroker').value = s.broker || 'broker.emqx.io';
+        document.getElementById('cfgPort').value = s.port || 8083;
+        document.getElementById('cfgPrefix').value = s.prefix || 'diesel/device';
+        document.getElementById('cfgDeviceId').value = s.deviceId || 'DIESEL001';
+        document.getElementById('cfgUser').value = s.user || '';
+        document.getElementById('cfgPass').value = s.pass || '';
+      } catch(e) {}
+    }
+  }
 
-        if (d.type === 'ack') {
-          showToast(d.message || 'Command executed');
-          return;
-        }
+  function getSettings() {
+    return {
+      broker: document.getElementById('cfgBroker').value.trim(),
+      port: parseInt(document.getElementById('cfgPort').value) || 8083,
+      prefix: document.getElementById('cfgPrefix').value.trim(),
+      deviceId: document.getElementById('cfgDeviceId').value.trim(),
+      user: document.getElementById('cfgUser').value.trim(),
+      pass: document.getElementById('cfgPass').value.trim()
+    };
+  }
 
-        // Update values with animation
+  function saveSettings() {
+    localStorage.setItem('mqtt_settings', JSON.stringify(getSettings()));
+  }
+
+  function toggleSettings() {
+    document.getElementById('settingsPanel').classList.toggle('open');
+  }
+
+  function saveAndReconnect() {
+    saveSettings();
+    toggleSettings();
+    connectMQTT();
+    showToast('Settings saved — reconnecting...');
+  }
+
+  function connectMQTT() {
+    // Disconnect existing client
+    if (client) {
+      try { client.end(true); } catch(e) {}
+      client = null;
+    }
+
+    const cfg = getSettings();
+    const url = `ws://${cfg.broker}:${cfg.port}/mqtt`;
+    dataTopic = `${cfg.prefix}/${cfg.deviceId}/data`;
+    cmdTopic  = `${cfg.prefix}/${cfg.deviceId}/command`;
+
+    const opts = {
+      clientId: 'dashboard_' + Math.random().toString(16).substr(2, 8),
+      clean: true,
+      connectTimeout: 5000,
+      reconnectPeriod: 3000
+    };
+    if (cfg.user) opts.username = cfg.user;
+    if (cfg.pass) opts.password = cfg.pass;
+
+    console.log('Connecting to', url, 'topic:', dataTopic);
+
+    client = mqtt.connect(url, opts);
+
+    client.on('connect', () => {
+      setConnected(true);
+      client.subscribe(dataTopic, { qos: 0 });
+      console.log('Subscribed to', dataTopic);
+    });
+
+    client.on('close', () => {
+      setConnected(false);
+    });
+
+    client.on('error', (err) => {
+      console.error('MQTT error:', err);
+    });
+
+    client.on('message', (topic, message) => {
+      try {
+        const d = JSON.parse(message.toString());
+
+        // Primary flow metrics
         animateValue('freq', d.frequency_hz, 1);
         animateValue('flow', d.flow_rate, 2);
         animateValue('total', d.total_liters, 2);
+
+        // Modbus extended metrics
+        if (d.temperature !== undefined) animateValue('temp', d.temperature, 1);
+        if (d.velocity !== undefined) animateValue('velocity', d.velocity, 2);
+        if (d.flow_m3h !== undefined) animateValue('flowm3', d.flow_m3h, 3);
+        if (d.cumulative_m3 !== undefined) animateValue('cumul', d.cumulative_m3, 3);
+
+        // Modbus connection status
+        if (d.modbus_online !== undefined) setModbusStatus(d.modbus_online);
 
         // Delivery count
         document.getElementById('delCount').textContent = d.delivery_count ?? '--';
@@ -493,7 +717,7 @@
         if (d.delivery_state === 'RUNNING') {
           info.classList.add('visible');
           document.getElementById('delLiters').textContent =
-            (d.delivery_liters ?? 0).toFixed(2);
+            parseFloat(d.delivery_liters || 0).toFixed(2);
         } else {
           info.classList.remove('visible');
         }
@@ -505,17 +729,18 @@
         document.getElementById('devId').textContent = d.device_id || '--';
         document.getElementById('timestamp').textContent = d.timestamp || '--';
 
-      } catch (err) { /* ignore parse errors */ }
-    };
+      } catch (err) { /* ignore */ }
+    });
   }
 
   function animateValue(id, newVal, decimals) {
     const el = document.getElementById(id);
+    if (!el) return;
     const v = parseFloat(newVal);
     if (isNaN(v)) { el.textContent = '--'; return; }
     el.textContent = v.toFixed(decimals);
     el.style.transition = 'none';
-    el.style.textShadow = `0 0 16px currentColor`;
+    el.style.textShadow = '0 0 16px currentColor';
     requestAnimationFrame(() => {
       el.style.transition = 'text-shadow 0.6s ease';
       el.style.textShadow = 'none';
@@ -533,14 +758,22 @@
     const badge = document.getElementById('connBadge');
     const text = document.getElementById('connText');
     badge.className = 'conn-badge ' + (ok ? 'connected' : 'disconnected');
-    text.textContent = ok ? 'Connected' : 'Disconnected';
+    text.textContent = ok ? 'MQTT Connected' : 'Disconnected';
+  }
+
+  function setModbusStatus(online) {
+    const badge = document.getElementById('modbusBadge');
+    const text = document.getElementById('modbusText');
+    badge.className = 'modbus-badge ' + (online ? 'online' : 'offline');
+    text.textContent = online ? 'Online' : 'Offline';
   }
 
   function sendCmd(cmd) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ cmd: cmd }));
+    if (client && client.connected) {
+      client.publish(cmdTopic, JSON.stringify({ command: cmd }));
+      showToast('Command sent: ' + cmd);
     } else {
-      showToast('Not connected!');
+      showToast('Not connected to MQTT!');
     }
   }
 
@@ -551,38 +784,9 @@
     setTimeout(() => t.classList.remove('show'), 2500);
   }
 
-  // Start connection
-  connect();
+  // Initialize
+  loadSettings();
+  connectMQTT();
 </script>
-<script>
-// Local demo mode — simulates data when no WebSocket is available
-if (!window._wsConnected) {
-  setTimeout(function() {
-    if (!window._wsConnected) {
-      setConnected(true);
-      document.getElementById('connText').textContent = 'Demo Mode';
-      setInterval(function() {
-        var freq = (Math.random() * 200 + 800).toFixed(1);
-        var flow = (freq * 3600 / 6836 * 1000 / 60).toFixed(2);
-        var total = (10855.62 + Math.random() * 10).toFixed(2);
-        animateValue('freq', freq, 1);
-        animateValue('flow', flow, 2);
-        animateValue('total', total, 2);
-        document.getElementById('delCount').textContent = '47';
-        document.getElementById('duration').textContent = '03:42';
-        updateState('RUNNING');
-        document.getElementById('deliveryInfo').classList.add('visible');
-        document.getElementById('delLiters').textContent = (Math.random() * 500).toFixed(2);
-        document.getElementById('devId').textContent = 'DIESEL001';
-        document.getElementById('timestamp').textContent = new Date().toISOString().slice(0,19).replace('T',' ');
-      }, 1000);
-    }
-  }, 3000);
-}
-window._wsOldConnect = connect;
-connect = function() {
-  try { window._wsOldConnect(); } catch(e) {}
-  setTimeout(function() { if (!window._wsConnected) { } }, 2000);
-};
-</script></body>
+</body>
 </html>
