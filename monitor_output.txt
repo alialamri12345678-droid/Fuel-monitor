@@ -1,0 +1,27 @@
+--- Terminal on /dev/ttyACM0 | 9600 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+␀␀�␀␀␀␀␀␀�␀␀␀␀␀␀␀␀␀␀�␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀[201679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[202679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[202679 ms] [WARNING] [WiFi] Disconnected from AP
+[203679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[204679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[205100 ms] [WARNING] [WiFi] Disconnected from AP
+[205679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[206679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[207521 ms] [WARNING] [WiFi] Disconnected from AP
+[207679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[208679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[209679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[209941 ms] [WARNING] [WiFi] Disconnected from AP
+[210679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[211679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[212362 ms] [WARNING] [WiFi] Disconnected from AP
+[212679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[212865 ms] [WARNING] [WiFi] Connection timeout
+[212865 ms] [INFO] [WiFi] Reconnect attempt 14
+[213679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[214679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[215322 ms] [WARNING] [WiFi] Disconnected from AP
+[215679 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE

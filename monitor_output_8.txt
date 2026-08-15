@@ -1,0 +1,59 @@
+--- Terminal on /dev/ttyACM0 | 9600 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀[10559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[10771 ms] [WARNING] [WiFi] Disconnected from AP
+[11559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[12559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[13191 ms] [WARNING] [WiFi] Disconnected from AP
+[13559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[14559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[15559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[15612 ms] [WARNING] [WiFi] Disconnected from AP
+[16090 ms] [WARNING] [WiFi] Connection timeout
+[16090 ms] [INFO] [WiFi] Reconnect attempt 1
+[16559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[17559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[18546 ms] [WARNING] [WiFi] Disconnected from AP
+[18559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[19559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[20559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[20966 ms] [WARNING] [WiFi] Disconnected from AP
+[21559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[22559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[23386 ms] [WARNING] [WiFi] Disconnected from AP
+[23559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[24559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[24939 ms] [INFO] [FlowModbus] --- ATTEMPTING CUMULATIVE CLEAR ---
+[24939 ms] [INFO] [FlowModbus] Sending clear command (FC06 to addr 0x0013, val 99)...
+[25083 ms] [INFO] [FlowModbus] Clear command (99 to 0x0013) acknowledged by flowmeter!
+[25559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.032 m³ | State: IDLE
+[25806 ms] [WARNING] [WiFi] Disconnected from AP
+[26559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[27559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[28226 ms] [WARNING] [WiFi] Disconnected from AP
+[28559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[29559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[30559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[30646 ms] [WARNING] [WiFi] Disconnected from AP
+[31127 ms] [WARNING] [WiFi] Connection timeout
+[31127 ms] [INFO] [WiFi] Reconnect attempt 2
+[31559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[32559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[33559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[33583 ms] [WARNING] [WiFi] Disconnected from AP
+[34559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[35559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[36003 ms] [WARNING] [WiFi] Disconnected from AP
+[36559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[37559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[38424 ms] [WARNING] [WiFi] Disconnected from AP
+[38559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[39559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[40559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[40844 ms] [WARNING] [WiFi] Disconnected from AP
+[41559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[42559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE
+[43264 ms] [WARNING] [WiFi] Disconnected from AP
+[43559 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.000 m³ | State: IDLE

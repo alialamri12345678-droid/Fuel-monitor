@@ -1,5 +1,6 @@
 #include "MQTTManager.h"
 #include "../../config/Config.h"
+#include "../../config/Certs.h"
 #include "../../utils/Logger.h"
 #include "../../utils/ErrorHandler.h"
 
@@ -7,7 +8,7 @@ static const char* TAG = "MQTT";
 
 MQTTManager::MQTTManager()
     : _mqttClient(_wifiClient),
-      _brokerPort(1883),
+      _brokerPort(8883),
       _lastReconnectAttempt(0)
 {
 }
@@ -20,9 +21,14 @@ bool MQTTManager::begin(const char* host,
 {
     _brokerHost   = host;
     _brokerPort   = port;
-    _mqttUsername  = username;
+    _mqttUsername = username;
     _mqttPassword = password;
     _deviceId     = deviceId;
+
+    // Set up mutual TLS (mTLS) with certificates
+    _wifiClient.setCACert(EMQX_CA_CERT);
+    _wifiClient.setCertificate(MQTTX_CLIENT_CERT);
+    _wifiClient.setPrivateKey(MQTTX_CLIENT_KEY);
 
     _mqttClient.setServer(
         _brokerHost.c_str(),
@@ -32,7 +38,7 @@ bool MQTTManager::begin(const char* host,
 
     generateClientId();
 
-    LOG_INFO(TAG, "Configured: %s:%u", _brokerHost.c_str(), _brokerPort);
+    LOG_INFO(TAG, "Configured: %s:%u (TLS)", _brokerHost.c_str(), _brokerPort);
     LOG_INFO(TAG, "Device ID: %s", _deviceId.c_str());
     LOG_INFO(TAG, "Client ID: %s", _clientId.c_str());
 
@@ -53,7 +59,7 @@ void MQTTManager::update()
     {
         _lastReconnectAttempt = now;
 
-        LOG_INFO(TAG, "Attempting connection...");
+        LOG_INFO(TAG, "Attempting TLS connection...");
 
         connect();
     }
@@ -66,34 +72,32 @@ bool MQTTManager::connect()
         return true;
     }
 
-    bool connected = false;
-    const char* user = _mqttUsername.length() > 0
-                       ? _mqttUsername.c_str()
-                       : nullptr;
-    const char* pass = _mqttPassword.length() > 0
-                       ? _mqttPassword.c_str()
-                       : nullptr;
-
-    // Build Last Will and Testament topic
+    // Build LWT topic: devices/{id}/status
     char lwtTopic[MAX_TOPIC_LEN];
     getStatusTopic(lwtTopic, sizeof(lwtTopic));
 
+    // LWT payload matches Flutter app expectation
+    const char* lwtPayload = "{\"status\": \"offline\"}";
+
     // Connect with LWT
-    connected = _mqttClient.connect(
+    const char* user = _mqttUsername.length() > 0 ? _mqttUsername.c_str() : nullptr;
+    const char* pass = _mqttPassword.length() > 0 ? _mqttPassword.c_str() : nullptr;
+
+    bool connected = _mqttClient.connect(
         _clientId.c_str(),
         user,
         pass,
         lwtTopic,
-        0,      // QoS
-        true,   // Retained
-        "{\"online\":false}");
+        1,              // QoS 1
+        true,           // retained
+        lwtPayload);
 
     if (connected)
     {
-        LOG_INFO(TAG, "Connected as %s", _clientId.c_str());
+        LOG_INFO(TAG, "Connected (TLS) as %s", _clientId.c_str());
 
-        // Publish online status
-        publish(lwtTopic, "{\"online\":true}", true);
+        // Publish online status immediately (retained)
+        publish(lwtTopic, "{\"status\": \"online\"}", true);
 
         ErrorHandler::clearError(SystemError::ERROR_MQTT_FAILURE);
     }
@@ -175,13 +179,12 @@ PubSubClient& MQTTManager::getClient()
 }
 
 // ============================================================
-//  Topic Builders
+//  Topic Builders (Flutter-compatible)
 // ============================================================
 
-void MQTTManager::getDataTopic(char* buffer, size_t len) const
+void MQTTManager::getTelemetryTopic(char* buffer, size_t len) const
 {
-    snprintf(buffer, len, "%s/%s/data",
-             MQTT_TOPIC_PREFIX, _deviceId.c_str());
+    snprintf(buffer, len, "fuel_monitor_data");
 }
 
 void MQTTManager::getStatusTopic(char* buffer, size_t len) const
@@ -190,16 +193,9 @@ void MQTTManager::getStatusTopic(char* buffer, size_t len) const
              MQTT_TOPIC_PREFIX, _deviceId.c_str());
 }
 
-void MQTTManager::getDeliveryTopic(char* buffer, size_t len) const
-{
-    snprintf(buffer, len, "%s/%s/delivery",
-             MQTT_TOPIC_PREFIX, _deviceId.c_str());
-}
-
 void MQTTManager::getCommandTopic(char* buffer, size_t len) const
 {
-    snprintf(buffer, len, "%s/%s/command",
-             MQTT_TOPIC_PREFIX, _deviceId.c_str());
+    snprintf(buffer, len, "fuel_monitor_command");
 }
 
 // ============================================================
@@ -208,14 +204,5 @@ void MQTTManager::getCommandTopic(char* buffer, size_t len) const
 
 void MQTTManager::generateClientId()
 {
-    uint32_t chipId =
-        static_cast<uint32_t>(ESP.getEfuseMac());
-
-    char id[32];
-
-    snprintf(id, sizeof(id),
-             "DIESEL-%s-%08X",
-             _deviceId.c_str(), chipId);
-
-    _clientId = id;
+    _clientId = "fuel_monitor_firmware";
 }

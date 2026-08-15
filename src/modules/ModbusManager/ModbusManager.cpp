@@ -291,3 +291,83 @@ void ModbusManager::updateStatistics(uint8_t result)
         }
     }
 }
+
+/*==================================================
+    Raw Frame Transmission (non-standard FC)
+==================================================*/
+
+static uint16_t crc16Modbus(const uint8_t* data, size_t len)
+{
+    uint16_t crc = 0xFFFF;
+    for (size_t i = 0; i < len; i++)
+    {
+        crc ^= data[i];
+        for (int j = 0; j < 8; j++)
+        {
+            if (crc & 0x0001)
+                crc = (crc >> 1) ^ 0xA001;
+            else
+                crc >>= 1;
+        }
+    }
+    return crc;
+}
+
+bool ModbusManager::sendRawFrame(const uint8_t* frame, size_t frameLen)
+{
+    // Build full frame with CRC
+    uint8_t buf[32];
+    if (frameLen > sizeof(buf) - 2) return false;
+
+    memcpy(buf, frame, frameLen);
+
+    uint16_t crc = crc16Modbus(buf, frameLen);
+    buf[frameLen]     = crc & 0xFF;        // CRC low byte
+    buf[frameLen + 1] = (crc >> 8) & 0xFF; // CRC high byte
+
+    size_t totalLen = frameLen + 2;
+
+    // Set DE/RE high for transmit
+    digitalWrite(_derePin, HIGH);
+    delayMicroseconds(100);
+
+    _serial.write(buf, totalLen);
+    _serial.flush();
+
+    // Set DE/RE low for receive
+    delayMicroseconds(100);
+    digitalWrite(_derePin, LOW);
+
+    // Wait for response (up to 1 second)
+    unsigned long start = millis();
+    while (_serial.available() == 0 && millis() - start < 1000)
+    {
+        esp_task_wdt_reset();
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+
+    if (_serial.available() > 0)
+    {
+        // Read response
+        uint8_t resp[64];
+        size_t respLen = 0;
+        while (_serial.available() > 0 && respLen < sizeof(resp))
+        {
+            resp[respLen++] = _serial.read();
+            delay(2); // inter-byte delay
+        }
+
+        // Build a hex string of the response for debugging
+        char hexBuf[256] = {0};
+        for (size_t i = 0; i < respLen && i < 32; i++)
+        {
+            sprintf(hexBuf + (i * 3), "%02X ", resp[i]);
+        }
+        
+        LOG_INFO(TAG, "Raw frame response (%u bytes): %s", respLen, hexBuf);
+        return true;
+    }
+
+    LOG_WARNING(TAG, "Raw frame: no response");
+    return false;
+}

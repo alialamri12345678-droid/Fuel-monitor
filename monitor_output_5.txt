@@ -1,0 +1,49 @@
+--- Terminal on /dev/ttyACM1 | 9600 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+[14492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[15492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[15616 ms] [WARNING] [WiFi] Disconnected from AP
+[16094 ms] [WARNING] [WiFi] Connection timeout
+[16094 ms] [INFO] [WiFi] Reconnect attempt 1
+[16492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[17492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[18492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[18551 ms] [WARNING] [WiFi] Disconnected from AP
+[19492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[19940 ms] [INFO] [FlowModbus] --- ATTEMPTING CUMULATIVE CLEAR ---
+[19940 ms] [INFO] [FlowModbus] Sending clear command (FC06 to addr 0x0000, val 99)...
+[20084 ms] [INFO] [FlowModbus] Clear command acknowledged by flowmeter
+[20492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[20971 ms] [WARNING] [WiFi] Disconnected from AP
+[21492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[22492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[23392 ms] [WARNING] [WiFi] Disconnected from AP
+[23492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[24492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[25492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[25812 ms] [WARNING] [WiFi] Disconnected from AP
+[26492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[27492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[28233 ms] [WARNING] [WiFi] Disconnected from AP
+[28492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[29492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[29941 ms] [INFO] [FlowModbus] --- ATTEMPTING CUMULATIVE CLEAR ---
+[29941 ms] [INFO] [FlowModbus] Sending clear command (FC06 to addr 0x0000, val 99)...
+[30085 ms] [INFO] [FlowModbus] Clear command acknowledged by flowmeter
+[30492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[30653 ms] [WARNING] [WiFi] Disconnected from AP
+[31131 ms] [WARNING] [WiFi] Connection timeout
+[31131 ms] [INFO] [WiFi] Reconnect attempt 2
+[31492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[32492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[33492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[33587 ms] [WARNING] [WiFi] Disconnected from AP
+[34492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[35492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[36008 ms] [WARNING] [WiFi] Disconnected from AP
+[36492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[37492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[38428 ms] [WARNING] [WiFi] Disconnected from AP
+[38492 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE

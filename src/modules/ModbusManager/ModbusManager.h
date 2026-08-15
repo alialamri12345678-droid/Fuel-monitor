@@ -89,6 +89,14 @@ public:
                                 uint16_t quantity,
                                 uint16_t* values);
 
+    /**
+     * @brief Send a raw Modbus RTU frame (for non-standard function codes).
+     * @param frame    Pointer to the frame bytes (without CRC).
+     * @param frameLen Length of the frame (without CRC).
+     * @return true if the device responded.
+     */
+    bool sendRawFrame(const uint8_t* frame, size_t frameLen);
+
     /*============================
       Response Access
     ============================*/

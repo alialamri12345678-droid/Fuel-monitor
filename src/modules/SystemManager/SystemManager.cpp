@@ -7,6 +7,7 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <time.h>
+#include "mbedtls/md.h"
 
 static const char* TAG = "System";
 
@@ -30,6 +31,7 @@ SystemManager::SystemManager()
       _initialized(false),
       _mqttSubscribed(false),
       _sessionTotalLiters(0.0f),
+      _sequenceNumber(1),
       _lastSensorRead(0),
       _lastMqttPublish(0),
       _lastStatusPublish(0)
@@ -64,10 +66,11 @@ bool SystemManager::begin()
     connectMQTT();
     subscribeTopics();
 
-    // Load persisted session total from NVS
+    // Load persisted state from NVS
     loadSessionTotal();
+    loadSequenceNumber();
 
-    // Configure NTP
+    // Configure NTP for unix timestamps
     configTzTime("UTC0", "pool.ntp.org");
 
     _initialized = true;
@@ -93,8 +96,8 @@ bool SystemManager::initializeModules()
     LOG_INFO(TAG, "Initializing Delivery Manager...");
     _delivery.begin();
 
-    // 3. MQTT
-    LOG_INFO(TAG, "Initializing MQTT...");
+    // 3. MQTT (TLS)
+    LOG_INFO(TAG, "Initializing MQTT (TLS)...");
     _mqtt.begin(MQTT_BROKER, MQTT_PORT,
                 MQTT_USERNAME, MQTT_PASSWORD,
                 MQTT_DEVICE_ID);
@@ -106,7 +109,6 @@ bool SystemManager::initializeModules()
 void SystemManager::connectNetwork()
 {
     LOG_INFO(TAG, "Initiating WiFi connection...");
-    _wifi.setHostname(WIFI_HOSTNAME);
     _wifi.begin(WIFI_SSID, WIFI_PASSWORD);
 }
 
@@ -181,7 +183,7 @@ void SystemManager::update()
     }
 
     // --------------------------------------------------------
-    //  4. MQTT live data publish (every 1 second)
+    //  4. MQTT telemetry publish (every 1 second)
     // --------------------------------------------------------
     if (timerExpired(_lastMqttPublish, MQTT_PUBLISH_INTERVAL_MS))
     {
@@ -250,11 +252,11 @@ void SystemManager::publishLiveData()
 
     if (!_mqtt.isConnected()) return;
 
-    char buffer[512];
-    if (serializeLiveData(buffer, sizeof(buffer)))
+    char buffer[256];
+    if (serializeTelemetry(buffer, sizeof(buffer)))
     {
         char topic[MQTTManager::MAX_TOPIC_LEN];
-        _mqtt.getDataTopic(topic, sizeof(topic));
+        _mqtt.getTelemetryTopic(topic, sizeof(topic));
         _mqtt.publish(topic, buffer);
     }
 }
@@ -267,27 +269,23 @@ void SystemManager::publishStatus()
     if (serializeStatus(buffer, sizeof(buffer)))
     {
         char topic[MQTTManager::MAX_TOPIC_LEN];
-        _mqtt.getStatusTopic(topic, sizeof(topic));
+        _mqtt.getTelemetryTopic(topic, sizeof(topic));
         _mqtt.publish(topic, buffer);
     }
 }
 
 void SystemManager::publishDeliveryRecord(const DeliveryRecord& record)
 {
-    char buffer[512];
-    if (serializeDelivery(record, buffer, sizeof(buffer)))
+    // Delivery data is included in the telemetry stream.
+    // Publish a one-time telemetry message with the delivery totals.
+    if (!_mqtt.isConnected()) return;
+
+    char buffer[256];
+    if (serializeTelemetry(buffer, sizeof(buffer)))
     {
         char topic[MQTTManager::MAX_TOPIC_LEN];
-        _mqtt.getDeliveryTopic(topic, sizeof(topic));
-
-        if (_mqtt.isConnected())
-        {
-            if (_mqtt.publish(topic, buffer))
-            {
-                LOG_INFO(TAG, "Delivery #%lu published to MQTT",
-                         (unsigned long)record.deliveryId);
-            }
-        }
+        _mqtt.getTelemetryTopic(topic, sizeof(topic));
+        _mqtt.publish(topic, buffer);
     }
 }
 
@@ -301,80 +299,23 @@ void SystemManager::handleDeliveryCompletion()
         _sessionTotalLiters += record.totalLiters;
         saveSessionTotal();
 
-        // Publish to MQTT
+        // Publish delivery via telemetry
         publishDeliveryRecord(record);
     }
 }
+
+
 
 // ============================================================
 //  JSON Serialization
 // ============================================================
 
-static void getTimestampString(char* buf, size_t len)
+bool SystemManager::serializeTelemetry(char* buffer, size_t len)
 {
-    struct tm timeinfo;
-    if (getLocalTime(&timeinfo, 0))
-    {
-        if (timeinfo.tm_year + 1900 >= 2024)
-        {
-            snprintf(buf, len, "%04d-%02d-%02d %02d:%02d:%02d",
-                     timeinfo.tm_year + 1900, timeinfo.tm_mon + 1,
-                     timeinfo.tm_mday,
-                     timeinfo.tm_hour, timeinfo.tm_min,
-                     timeinfo.tm_sec);
-            return;
-        }
-    }
-    // Fallback to uptime
-    snprintf(buf, len, "uptime:%lu", (unsigned long)(millis()/1000));
-}
+    StaticJsonDocument<256> doc;
 
-bool SystemManager::serializeLiveData(char* buffer, size_t len)
-{
-    StaticJsonDocument<384> doc;
-
-    char timestamp[32];
-    getTimestampString(timestamp, sizeof(timestamp));
-
-    float totalLiters = _sessionTotalLiters;
-    if (_delivery.getState() == DeliveryState::DELIVERING)
-    {
-        totalLiters += _delivery.getCurrentDeliveryLiters();
-    }
-
-    doc["device_id"]      = MQTT_DEVICE_ID;
-    doc["timestamp"]      = timestamp;
-    doc["delivery_state"] = deliveryStateToString(_delivery.getState());
-    doc["delivery_count"] = _delivery.getDeliveryCount();
-    doc["delivery_liters"]= serialized(String(_delivery.getCurrentDeliveryLiters(), 2));
-    doc["delivery_duration"] = _delivery.getCurrentDeliveryDuration();
-
-    const auto& md = _flowModbus.getData();
-    doc["frequency_hz"]   = serialized(String(md.frequency, 1));
-    doc["flow_rate"]      = serialized(String(_flowModbus.getFlowLPM(), 2));
-    doc["total_liters"]   = serialized(String(md.totalFlow * 1000.0, 2));
-    doc["temperature"]    = serialized(String(md.temperature, 1));
-    doc["velocity"]       = serialized(String(md.velocity, 2));
-    doc["flow_m3h"]       = serialized(String(md.flowRate, 3));
-    doc["cumulative_m3"]  = serialized(String(md.totalFlow, 3));
-    doc["flow_unit"]      = md.flowUnitStr;
-    doc["modbus_online"]  = _flowModbus.isOnline();
-
-    size_t written = serializeJson(doc, buffer, len);
-    return (written > 0 && written < len);
-}
-
-bool SystemManager::serializeDelivery(const DeliveryRecord& record,
-                                       char* buffer, size_t len)
-{
-    StaticJsonDocument<384> doc;
-
-    doc["device_id"]    = MQTT_DEVICE_ID;
-    doc["delivery_id"]  = record.deliveryId;
-    doc["start_time"]   = record.startTime;
-    doc["end_time"]     = record.endTime;
-    doc["duration"]     = record.durationSeconds;
-    doc["total_liters"] = serialized(String(record.totalLiters, 2));
+    float totalVol = _flowModbus.getCumulativeLiters();
+    doc["total_volume"] = totalVol;
 
     size_t written = serializeJson(doc, buffer, len);
     return (written > 0 && written < len);
@@ -384,12 +325,9 @@ bool SystemManager::serializeStatus(char* buffer, size_t len)
 {
     StaticJsonDocument<512> doc;
 
-    char timestamp[32];
-    getTimestampString(timestamp, sizeof(timestamp));
-
     doc["device_id"]    = MQTT_DEVICE_ID;
-    doc["timestamp"]    = timestamp;
     doc["online"]       = true;
+    doc["uptime_s"]     = millis() / 1000;
 
     // WiFi status
     JsonObject wifi = doc.createNestedObject("wifi");
@@ -398,14 +336,11 @@ bool SystemManager::serializeStatus(char* buffer, size_t len)
     wifi["quality"]     = _wifi.getSignalQuality();
     wifi["ip"]          = _wifi.getIPAddress().toString();
 
-    // Hardware status
-    JsonObject hw = doc.createNestedObject("hardware");
-    hw["sensor_ok"]     = !ErrorHandler::hasError(SystemError::ERROR_SENSOR_OUT_OF_RANGE);
-
-    // System info
-    doc["free_heap"]    = ESP.getFreeHeap();
-    doc["uptime_s"]     = millis() / 1000;
-    doc["deliveries"]   = _delivery.getDeliveryCount();
+    // Modbus status
+    doc["modbus_online"] = _flowModbus.isOnline();
+    doc["free_heap"]     = ESP.getFreeHeap();
+    doc["deliveries"]    = _delivery.getDeliveryCount();
+    doc["seq"]           = _sequenceNumber;
 
     // Active errors
     char errStr[128];
@@ -469,39 +404,21 @@ void SystemManager::handleMQTTMessage(
 
         // Handle commands
         const char* cmd = doc["command"] | "";
+        const char* clearCmd = doc["clear_command"] | "";
 
-        bool cmdOk = false;
-
-        if (strcmp(cmd, "reset_total") == 0)
+        if (strcmp(cmd, "CLEAR") == 0 || strcmp(clearCmd, "CLEAR") == 0)
         {
-            _sessionTotalLiters = 0.0f;
-            saveSessionTotal();
-            LOG_INFO(TAG, "Session total reset via MQTT command");
-            cmdOk = true;
-        }
-        else if (strcmp(cmd, "reset_deliveries") == 0)
-        {
-            _delivery.resetDeliveryCount();
-            LOG_INFO(TAG, "Delivery count reset via MQTT command");
-            cmdOk = true;
+            _flowModbus.clearCumulative();
+            LOG_INFO(TAG, "Cumulative flow cleared via MQTT command");
         }
         else if (strcmp(cmd, "status") == 0)
         {
             publishStatus();
-            cmdOk = true;
         }
         else
         {
             LOG_WARNING(TAG, "Unknown command: %s", cmd);
         }
-
-        // Send command acknowledgment
-        char respTopic[MQTTManager::MAX_TOPIC_LEN];
-        _mqtt.getStatusTopic(respTopic, sizeof(respTopic));
-        const char* result = cmdOk
-            ? "{\"command_result\":\"ok\"}"
-            : "{\"command_result\":\"error\"}";
-        _mqtt.publish(respTopic, result);
 
         return;
     }
@@ -510,18 +427,17 @@ void SystemManager::handleMQTTMessage(
 }
 
 // ============================================================
-//  Session Total Persistence (NVS)
+//  NVS Persistence
 // ============================================================
 
 static const char* NVS_NAMESPACE = "diesel";
 static const char* NVS_KEY_TOTAL = "total_liters";
+static const char* NVS_KEY_SEQ   = "seq_num";
 
 void SystemManager::loadSessionTotal()
 {
     Preferences prefs;
-    prefs.begin(NVS_NAMESPACE, true);  // Read-only
-
-    // getFloat returns 0.0f if key doesn't exist
+    prefs.begin(NVS_NAMESPACE, true);
     _sessionTotalLiters = prefs.getFloat(NVS_KEY_TOTAL, 0.0f);
     prefs.end();
 
@@ -532,10 +448,32 @@ void SystemManager::loadSessionTotal()
 void SystemManager::saveSessionTotal()
 {
     Preferences prefs;
-    prefs.begin(NVS_NAMESPACE, false);  // Read-write
+    prefs.begin(NVS_NAMESPACE, false);
     prefs.putFloat(NVS_KEY_TOTAL, _sessionTotalLiters);
     prefs.end();
 
     LOG_DEBUG(TAG, "Saved session total to NVS: %.2f liters",
               _sessionTotalLiters);
+}
+
+void SystemManager::loadSequenceNumber()
+{
+    Preferences prefs;
+    prefs.begin(NVS_NAMESPACE, true);
+    _sequenceNumber = prefs.getULong(NVS_KEY_SEQ, 1);
+    prefs.end();
+
+    LOG_INFO(TAG, "Loaded sequence number from NVS: %lu",
+             _sequenceNumber);
+}
+
+void SystemManager::saveSequenceNumber()
+{
+    Preferences prefs;
+    prefs.begin(NVS_NAMESPACE, false);
+    prefs.putULong(NVS_KEY_SEQ, _sequenceNumber);
+    prefs.end();
+
+    LOG_DEBUG(TAG, "Saved sequence number to NVS: %lu",
+              _sequenceNumber);
 }

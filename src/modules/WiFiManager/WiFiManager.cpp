@@ -41,13 +41,10 @@ void WiFiManager::update()
 
 bool WiFiManager::isConnected() const
 {
-    return WiFi.status() == WL_CONNECTED || _state == State::AP_MODE;
+    return WiFi.status() == WL_CONNECTED;
 }
 
-bool WiFiManager::isAPMode() const
-{
-    return _state == State::AP_MODE;
-}
+
 
 WiFiManager::State WiFiManager::getState() const
 {
@@ -56,9 +53,6 @@ WiFiManager::State WiFiManager::getState() const
 
 IPAddress WiFiManager::getIPAddress() const
 {
-    if (_state == State::AP_MODE)
-        return WiFi.softAPIP();
-
     return WiFi.localIP();
 }
 
@@ -160,20 +154,12 @@ void WiFiManager::checkConnection()
          _state == State::CONNECTION_FAILED) &&
         millis() - _lastReconnectTime > RECONNECT_INTERVAL)
     {
-        // Check if we should give up STA and start AP
-        if (_reconnectCount >= AP_FALLBACK_ATTEMPTS)
-        {
-            startAP();
-            return;
-        }
-
         _lastReconnectTime = millis();
         _reconnectCount++;
         _state = State::RECONNECTING;
 
-        LOG_INFO(TAG, "Reconnect attempt %lu / %lu",
-                 (unsigned long)_reconnectCount,
-                 (unsigned long)AP_FALLBACK_ATTEMPTS);
+        LOG_INFO(TAG, "Reconnect attempt %lu",
+                 (unsigned long)_reconnectCount);
 
         WiFi.disconnect(true);
 
@@ -184,32 +170,7 @@ void WiFiManager::checkConnection()
     }
 }
 
-// ============================================================
-//  AP Mode Fallback
-// ============================================================
 
-void WiFiManager::startAP()
-{
-    LOG_WARNING(TAG, "STA connection failed after %lu attempts",
-                (unsigned long)_reconnectCount);
-    LOG_INFO(TAG, "Starting Access Point: %s", AP_SSID);
-
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP(AP_SSID, AP_PASSWORD);
-
-    _state = State::AP_MODE;
-
-    delay(100);  // Small delay for AP to start
-
-    LOG_INFO(TAG, "============================================");
-    LOG_INFO(TAG, "  AP Mode Active");
-    LOG_INFO(TAG, "  SSID:     %s", AP_SSID);
-    LOG_INFO(TAG, "  Password: %s", AP_PASSWORD);
-    LOG_INFO(TAG, "  Dashboard: http://%s/",
-             WiFi.softAPIP().toString().c_str());
-    LOG_INFO(TAG, "============================================");
-}
 
 void WiFiManager::wifiEvent(WiFiEvent_t event)
 {

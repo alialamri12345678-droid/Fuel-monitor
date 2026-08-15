@@ -2,26 +2,25 @@
 #define MQTT_MANAGER_H
 
 #include <Arduino.h>
-#include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 
 /**
  * ============================================================
  * MQTTManager
  * ------------------------------------------------------------
- * Manages MQTT connection, publishing, and subscriptions
- * for the Diesel Delivery Monitoring System.
+ * Manages MQTT connection over TLS, publishing, and
+ * subscriptions for the Diesel Delivery Monitoring System.
  *
- * Uses plain TCP (WiFiClient) for MQTT communication.
+ * Uses WiFiClientSecure for TLS/SSL communication (port 8883).
  *
  * Features:
+ *  - TLS encrypted connection (WiFiClientSecure)
  *  - Non-blocking connection and reconnection
- *  - Publish to diesel-specific topics
+ *  - Last Will and Testament (LWT) for offline detection
+ *  - Publish to Flutter-compatible topics
  *  - Subscribe to command topics
  *  - Callback routing for incoming messages
- *  - Topic building with device ID substitution
- *
- * Adapted from the Generator Monitoring project.
  * ============================================================
  */
 
@@ -90,31 +89,25 @@ public:
     void setBufferSize(uint16_t size);
 
     /**
-     * @brief Get the underlying PubSubClient (for buffer processing).
+     * @brief Get the underlying PubSubClient.
      */
     PubSubClient& getClient();
 
     // ========================================================
-    //  Topic Builders
+    //  Topic Builders (Flutter-compatible)
     // ========================================================
 
     /**
-     * @brief Build the live data topic.
-     *        diesel/device/{device_id}/data
+     * @brief Build the telemetry topic.
+     *        diesel/device/{device_id}/telemetry/flow
      */
-    void getDataTopic(char* buffer, size_t len) const;
+    void getTelemetryTopic(char* buffer, size_t len) const;
 
     /**
-     * @brief Build the status topic.
+     * @brief Build the status topic (LWT).
      *        diesel/device/{device_id}/status
      */
     void getStatusTopic(char* buffer, size_t len) const;
-
-    /**
-     * @brief Build the delivery topic.
-     *        diesel/device/{device_id}/delivery
-     */
-    void getDeliveryTopic(char* buffer, size_t len) const;
 
     /**
      * @brief Build the command topic (subscribe).
@@ -129,8 +122,8 @@ public:
 
 private:
 
-    WiFiClient    _wifiClient;
-    PubSubClient  _mqttClient;
+    WiFiClientSecure  _wifiClient;
+    PubSubClient      _mqttClient;
 
     String _brokerHost;
     uint16_t _brokerPort;

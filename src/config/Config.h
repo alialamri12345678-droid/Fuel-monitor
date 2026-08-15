@@ -64,17 +64,17 @@
 
 #define WIFI_SSID               "AliAmri"
 #define WIFI_PASSWORD           "liano62512"
-#define WIFI_HOSTNAME           "ESP32-DieselMonitor"
 
 // ============================================================
 //  MQTT Configuration
 // ============================================================
 
-#define MQTT_BROKER             "broker.emqx.io"
-#define MQTT_PORT               1883
-#define MQTT_USERNAME           "mqtt_user"
-#define MQTT_PASSWORD           "mqtt_pass"
-#define MQTT_DEVICE_ID          "DIESEL001"
+#define MQTT_BROKER             "d1a61691.ala.eu-central-1.emqxsl.com"
+#define MQTT_PORT               8883
+#define MQTT_USERNAME           "fuel_monitor"
+#define MQTT_PASSWORD           "fuel_monitor"
+#define MQTT_DEVICE_ID          "fuel_monitor_firmware"
+#define MQTT_SECRET             "default_secret"
 
 // MQTT buffer size for PubSubClient
 #define MQTT_BUFFER_SIZE        2048

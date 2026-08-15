@@ -1,0 +1,21 @@
+--- Terminal on /dev/ttyACM0 | 9600 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀[7489 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[8354 ms] [WARNING] [WiFi] Disconnected from AP
+[8489 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[9489 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[9939 ms] [INFO] [FlowModbus] --- ATTEMPTING CUMULATIVE CLEAR ---
+[9939 ms] [INFO] [FlowModbus] Trying FC04: 01 04 00 00 00 63 (+CRC)
+[10215 ms] [INFO] [Modbus] Raw frame response (64 bytes): 01 04 C6 00 00 00 00 00 00 00 04 00 00 00 01 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+[10338 ms] [INFO] [FlowModbus] FC04 acknowledged
+[10489 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[10775 ms] [WARNING] [WiFi] Disconnected from AP
+[11489 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[12489 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[13195 ms] [WARNING] [WiFi] Disconnected from AP
+[13489 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[14489 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[15489 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.061 m³ | State: IDLE
+[15616 ms] [WARNING] [WiFi] Disconnected from AP

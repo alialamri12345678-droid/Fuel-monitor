@@ -24,6 +24,7 @@
  *  - Run the main non-blocking loop with millis-based scheduling
  *  - Route data between modules
  *  - Handle MQTT callbacks and command routing
+ *  - HMAC-SHA256 sign all telemetry payloads
  * ============================================================
  */
 
@@ -68,6 +69,9 @@ private:
     // Cumulative total liters (persisted to NVS across reboots)
     float _sessionTotalLiters;
 
+    // Sequence number for HMAC-signed payloads (persisted to NVS)
+    unsigned long _sequenceNumber;
+
     // ========================================================
     //  Scheduling Timers (millis-based)
     // ========================================================
@@ -85,9 +89,11 @@ private:
     void connectMQTT();
     void subscribeTopics();
 
-    // Session total NVS persistence
+    // NVS persistence
     void loadSessionTotal();
     void saveSessionTotal();
+    void loadSequenceNumber();
+    void saveSequenceNumber();
 
     // ========================================================
     //  Scheduling
@@ -110,9 +116,7 @@ private:
     //  JSON Serialization
     // ========================================================
 
-    bool serializeLiveData(char* buffer, size_t len);
-    bool serializeDelivery(const DeliveryRecord& record,
-                           char* buffer, size_t len);
+    bool serializeTelemetry(char* buffer, size_t len);
     bool serializeStatus(char* buffer, size_t len);
 
     // ========================================================

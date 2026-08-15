@@ -62,8 +62,8 @@ bool FlowMeterModbus::update()
 {
     _modbus.setSlaveID(_slaveID);
 
-    // Read 14 holding registers starting at address 0x0000
-    if (!_modbus.readHoldingRegisters(0, 14))
+    // Read 4 holding registers starting at address 0x0008 (Cumulative Flow High/Low)
+    if (!_modbus.readHoldingRegisters(8, 4))
     {
         _data.valid = false;
         LOG_WARNING(TAG, "Failed to read holding registers");
@@ -71,33 +71,23 @@ bool FlowMeterModbus::update()
     }
 
     // Decode floats (byte order 3412 = register word swap)
-    _data.temperature = decodeFloat3412(
+    _data.cumulativeHigh = decodeFloat3412(
         _modbus.getRegister(0), _modbus.getRegister(1));
 
-    _data.flowRate = decodeFloat3412(
+    _data.cumulativeLow = decodeFloat3412(
         _modbus.getRegister(2), _modbus.getRegister(3));
 
-    _data.velocity = decodeFloat3412(
-        _modbus.getRegister(4), _modbus.getRegister(5));
-
-    _data.frequency = decodeFloat3412(
-        _modbus.getRegister(6), _modbus.getRegister(7));
-
-    _data.cumulativeHigh = decodeFloat3412(
-        _modbus.getRegister(8), _modbus.getRegister(9));
-
-    _data.cumulativeLow = decodeFloat3412(
-        _modbus.getRegister(10), _modbus.getRegister(11));
-
-    _data.flowUnitCode = decodeFloat3412(
-        _modbus.getRegister(12), _modbus.getRegister(13));
+    // Clear unused fields
+    _data.temperature = 0.0f;
+    _data.flowRate = 0.0f;
+    _data.velocity = 0.0f;
+    _data.frequency = 0.0f;
+    _data.flowUnitCode = 0.0f;
+    _data.flowUnitStr = "m³"; // default assumption since we don't read it
 
     // Calculate total cumulative flow
     _data.totalFlow = (_data.cumulativeHigh * 100.0f) + _data.cumulativeLow;
     
-    // Parse unit
-    _data.flowUnitStr = getUnitString(_data.flowUnitCode);
-
     _data.valid = true;
 
     // Print parsed values
@@ -150,19 +140,22 @@ bool FlowMeterModbus::clearCumulative()
 {
     _modbus.setSlaveID(_slaveID);
 
-    // Function 04 is Input Registers (read), but the manual says 
-    // "Function 04 - Write 0x0000 0x0001 to clear".
-    // Usually writing is Function 16 or 6. If they literally mean F04, 
-    // ModbusMaster doesn't support writing via F04 natively. 
-    // We will attempt Function 16 (Write Multiple Registers) 
-    // since that is standard for clearing.
-    uint16_t clearCmd[2] = {0x0000, 0x0001};
-    if (!_modbus.writeMultipleRegisters(0, 2, clearCmd))
+    LOG_INFO(TAG, "--- ATTEMPTING CUMULATIVE CLEAR ---");
+    
+    // Manufacturer's updated clear command:
+    // Address: 0x0013 (Decimal 19)
+    // Function code: 06 (Standard Write Single Register)
+    // Data: unsigned integer 99 = 0x0063
+    // Raw Frame provided by manufacturer: 01 06 00 13 00 63 38 26
+    
+    LOG_INFO(TAG, "Sending clear command (FC06 to addr 0x0013, val 99)...");
+
+    if (_modbus.writeSingleRegister(0x0013, 99))
     {
-        LOG_WARNING(TAG, "Failed to clear cumulative flow");
-        return false;
+        LOG_INFO(TAG, "Clear command (99 to 0x0013) acknowledged by flowmeter!");
+        return true;
     }
 
-    LOG_INFO(TAG, "Cumulative flow cleared");
-    return true;
+    LOG_WARNING(TAG, "Clear command (99 to 0x0013): no response from flowmeter");
+    return false;
 }

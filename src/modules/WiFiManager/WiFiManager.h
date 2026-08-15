@@ -31,8 +31,7 @@ public:
         CONNECTING,
         CONNECTED,
         CONNECTION_FAILED,
-        RECONNECTING,
-        AP_MODE              // Fallback Access Point mode
+        RECONNECTING
     };
 
     WiFiManager();
@@ -54,14 +53,9 @@ public:
     void disconnect();
 
     /**
-     * @brief Returns true if connected (STA or AP mode).
+     * @brief Returns true if connected to WiFi.
      */
     bool isConnected() const;
-
-    /**
-     * @brief Returns true if running in AP mode.
-     */
-    bool isAPMode() const;
 
     /**
      * @brief Current connection state.
@@ -125,14 +119,8 @@ private:
 
     static constexpr unsigned long CONNECTION_TIMEOUT  = 15000;
     static constexpr unsigned long RECONNECT_INTERVAL  = 5000;
-    static constexpr uint32_t AP_FALLBACK_ATTEMPTS     = 3;
-
-    // AP mode config
-    static constexpr const char* AP_SSID     = "DieselMonitor";
-    static constexpr const char* AP_PASSWORD = "diesel1234";
 
     void startConnection();
-    void startAP();
     void checkConnection();
 
     static void wifiEvent(WiFiEvent_t event);

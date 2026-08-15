@@ -1,0 +1,53 @@
+--- Terminal on /dev/ttyACM0 | 9600 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀[7488 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[8351 ms] [WARNING] [WiFi] Disconnected from AP
+[8488 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[9488 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[9939 ms] [INFO] [FlowModbus] Clear cmd: 01 04 75 30 00 63 (+CRC)
+[10095 ms] [INFO] [Modbus] Raw frame response: 64 bytes
+[10095 ms] [INFO] [FlowModbus] Clear command acknowledged by flowmeter
+[10488 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[10771 ms] [WARNING] [WiFi] Disconnected from AP
+[11488 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[12488 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[13192 ms] [WARNING] [WiFi] Disconnected from AP
+[13488 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[14488 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[15488 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[15612 ms] [WARNING] [WiFi] Disconnected from AP
+[15688 ms] [INFO] [WiFi] Associated with AP
+[16090 ms] [WARNING] [WiFi] Connection timeout
+[16090 ms] [INFO] [WiFi] Reconnect attempt 1
+[16092 ms] [WARNING] [WiFi] Disconnected from AP
+[16237 ms] [INFO] [WiFi] Associated with AP
+[16287 ms] [INFO] [WiFi] IP address acquired
+[16287 ms] [INFO] [WiFi] Connected. IP: 172.20.10.7
+[16287 ms] [INFO] [MQTT] Attempting TLS connection...
+[18309 ms] [WARNING] [MQTT] Connection failed, rc=-2
+[18338 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[19337 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[19940 ms] [INFO] [FlowModbus] Clear cmd: 01 04 75 30 00 63 (+CRC)
+[20095 ms] [INFO] [Modbus] Raw frame response: 64 bytes
+[20095 ms] [INFO] [FlowModbus] Clear command acknowledged by flowmeter
+[20337 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[21287 ms] [INFO] [MQTT] Attempting TLS connection...
+[22100 ms] [WARNING] [MQTT] Connection failed, rc=-2
+[22129 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[23128 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[24128 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[25128 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[26128 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[26287 ms] [INFO] [MQTT] Attempting TLS connection...
+[27013 ms] [WARNING] [MQTT] Connection failed, rc=-2
+[27128 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[28128 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[29128 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[29941 ms] [INFO] [FlowModbus] Clear cmd: 01 04 75 30 00 63 (+CRC)
+[30097 ms] [INFO] [Modbus] Raw frame response: 64 bytes
+[30097 ms] [INFO] [FlowModbus] Clear command acknowledged by flowmeter
+[30128 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[31128 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[31287 ms] [INFO] [MQTT] Attempting TLS connection...

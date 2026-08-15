@@ -1,0 +1,55 @@
+--- Terminal on /dev/ttyACM0 | 9600 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀[18521 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[19521 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[19938 ms] [INFO] [MQTT] Attempting TLS connection...
+[20615 ms] [WARNING] [MQTT] Connection failed, rc=-2
+[20644 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[20766 ms] [INFO] [FlowModbus] --- ATTEMPTING CUMULATIVE CLEAR ---
+[20766 ms] [INFO] [FlowModbus] Trying FC06 to addr 0x7530, val 99
+[20911 ms] [INFO] [FlowModbus] FC06 acknowledged.
+[21411 ms] [INFO] [FlowModbus] Trying FC04: 01 04 75 30 00 63 (+CRC)
+[21625 ms] [INFO] [Modbus] Raw frame response (64 bytes): 01 04 C6 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+[21748 ms] [INFO] [FlowModbus] FC04 acknowledged
+[21779 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[22779 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[23779 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[24779 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[24938 ms] [INFO] [MQTT] Attempting TLS connection...
+[25528 ms] [WARNING] [MQTT] Connection failed, rc=-2
+[25779 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[26779 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[27779 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[28779 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[29779 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[29938 ms] [INFO] [MQTT] Attempting TLS connection...
+[30545 ms] [WARNING] [MQTT] Connection failed, rc=-2
+[30767 ms] [INFO] [FlowModbus] --- ATTEMPTING CUMULATIVE CLEAR ---
+[30767 ms] [INFO] [FlowModbus] Trying FC06 to addr 0x7530, val 99
+[30912 ms] [INFO] [FlowModbus] FC06 acknowledged.
+[31412 ms] [INFO] [FlowModbus] Trying FC04: 01 04 75 30 00 63 (+CRC)
+[31624 ms] [INFO] [Modbus] Raw frame response (64 bytes): 01 04 C6 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+[31747 ms] [INFO] [FlowModbus] FC04 acknowledged
+[31778 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[32777 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[33777 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[34777 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[34938 ms] [INFO] [MQTT] Attempting TLS connection...
+[35460 ms] [WARNING] [MQTT] Connection failed, rc=-2
+[35777 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[36777 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[37777 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[38777 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[39777 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[39938 ms] [INFO] [MQTT] Attempting TLS connection...
+[40581 ms] [WARNING] [MQTT] Connection failed, rc=-2
+[40768 ms] [INFO] [FlowModbus] --- ATTEMPTING CUMULATIVE CLEAR ---
+[40768 ms] [INFO] [FlowModbus] Trying FC06 to addr 0x7530, val 99
+[40912 ms] [INFO] [FlowModbus] FC06 acknowledged.
+[41412 ms] [INFO] [FlowModbus] Trying FC04: 01 04 75 30 00 63 (+CRC)
+[41623 ms] [INFO] [Modbus] Raw frame response (64 bytes): 01 04 C6 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+[41746 ms] [INFO] [FlowModbus] FC04 acknowledged
+[41777 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
+[42776 ms] [INFO] [System] Live: 0.0 Hz | 0.00 L/min | 0.0°C | 0.00 m/s | Cum: 0.241 m³ | State: IDLE
