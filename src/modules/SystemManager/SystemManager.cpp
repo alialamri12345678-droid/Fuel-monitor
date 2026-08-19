@@ -32,6 +32,9 @@ SystemManager::SystemManager()
       _mqttSubscribed(false),
       _sessionTotalLiters(0.0f),
       _sequenceNumber(1),
+      _wakeupCause(ESP_SLEEP_WAKEUP_UNDEFINED),
+      _lastFlowDetectedMs(0),
+      _flowDetectedSinceWakeup(false),
       _lastSensorRead(0),
       _lastMqttPublish(0),
       _lastStatusPublish(0)
@@ -43,14 +46,33 @@ SystemManager::SystemManager()
 //  Initialization
 // ============================================================
 
-bool SystemManager::begin()
+bool SystemManager::begin(esp_sleep_wakeup_cause_t wakeupCause)
 {
+    _wakeupCause = wakeupCause;
+
     // Logger must be initialized first
     Logger::begin(SERIAL_BAUD_RATE, Logger::Level::INFO);
 
     LOG_INFO(TAG, "====================================");
     LOG_INFO(TAG, "  Diesel Delivery Monitor Starting");
     LOG_INFO(TAG, "====================================");
+
+    // Log wake-up cause
+    switch (_wakeupCause)
+    {
+        case ESP_SLEEP_WAKEUP_EXT0:
+            LOG_INFO(TAG, "Wake-up cause: EXT0 (flow pulse on GPIO %d)", (int)WAKEUP_PIN);
+            break;
+        case ESP_SLEEP_WAKEUP_EXT1:
+            LOG_INFO(TAG, "Wake-up cause: EXT1");
+            break;
+        case ESP_SLEEP_WAKEUP_TIMER:
+            LOG_INFO(TAG, "Wake-up cause: TIMER");
+            break;
+        default:
+            LOG_INFO(TAG, "Wake-up cause: POWER ON / RESET");
+            break;
+    }
 
     if (!initializeModules())
     {
@@ -61,6 +83,15 @@ bool SystemManager::begin()
     esp_task_wdt_init(10, true);
     esp_task_wdt_add(NULL);
     LOG_INFO(TAG, "Watchdog timer initialized (10s)");
+
+    // Configure ext0 deep sleep wake-up on flowmeter pulse pin
+    // Wake on LOW level (NPN open-collector pulls to GND when active)
+    esp_sleep_enable_ext0_wakeup(WAKEUP_PIN, 0);
+    LOG_INFO(TAG, "Deep sleep ext0 wake-up configured on GPIO %d (Active LOW)", (int)WAKEUP_PIN);
+
+    // Initialize flow tracking
+    _lastFlowDetectedMs = millis();
+    _flowDetectedSinceWakeup = false;
 
     connectNetwork();
     connectMQTT();
@@ -202,6 +233,11 @@ void SystemManager::update()
     //  6. Delivery completion handling
     // --------------------------------------------------------
     handleDeliveryCompletion();
+
+    // --------------------------------------------------------
+    //  7. Deep sleep check (battery conservation)
+    // --------------------------------------------------------
+    checkSleepCondition();
 }
 
 // ============================================================
@@ -234,20 +270,28 @@ void SystemManager::readSensors()
         _flowModbus.update();
     }
 
+    // Track flow activity for deep sleep decisions
+    float flowLPM = _flowModbus.getFlowLPM();
+    if (flowLPM > 0.1f)  // Small threshold to ignore noise
+    {
+        _lastFlowDetectedMs = millis();
+        _flowDetectedSinceWakeup = true;
+    }
+
     // Feed delivery manager with Modbus flow rate (L/min)
-    _delivery.update(_flowModbus.getFlowLPM());
+    _delivery.update(flowLPM);
 }
 
 void SystemManager::publishLiveData()
 {
     const auto& md = _flowModbus.getData();
     LOG_INFO(TAG, "Live: %.1f Hz | %.2f L/min | %.1f°C | "
-                  "%.2f m/s | Cum: %.3f m³ | State: %s",
+                  "%.2f m/s | Cum: %.3f L | State: %s",
              md.frequency,
              _flowModbus.getFlowLPM(),
              md.temperature,
              md.velocity,
-             md.totalFlow,
+             md.totalLiters,
              deliveryStateToString(_delivery.getState()));
 
     if (!_mqtt.isConnected()) return;
@@ -476,4 +520,84 @@ void SystemManager::saveSequenceNumber()
 
     LOG_DEBUG(TAG, "Saved sequence number to NVS: %lu",
               _sequenceNumber);
+}
+
+// ============================================================
+//  Deep Sleep
+// ============================================================
+
+void SystemManager::checkSleepCondition()
+{
+    unsigned long now = millis();
+    unsigned long idleDuration = now - _lastFlowDetectedMs;
+    unsigned long idleSeconds = idleDuration / 1000;
+
+    // Case 1: Flow was detected since wake-up, now it stopped.
+    // Wait for the grace period before sleeping.
+    if (_flowDetectedSinceWakeup)
+    {
+        if (idleSeconds >= DEEP_SLEEP_GRACE_PERIOD_S)
+        {
+            LOG_INFO(TAG, "No flow for %lu seconds (grace period elapsed). Entering deep sleep...",
+                     idleSeconds);
+            enterDeepSleep();
+        }
+        return;
+    }
+
+    // Case 2: No flow detected since wake-up (false trigger / noise).
+    // Use the idle timeout to avoid staying awake forever.
+    if (idleSeconds >= DEEP_SLEEP_IDLE_TIMEOUT_S)
+    {
+        LOG_INFO(TAG, "No flow detected for %lu seconds since wake-up. Returning to deep sleep...",
+                 idleSeconds);
+        enterDeepSleep();
+    }
+}
+
+void SystemManager::enterDeepSleep()
+{
+    LOG_INFO(TAG, "====================================");
+    LOG_INFO(TAG, "  Entering Deep Sleep");
+    LOG_INFO(TAG, "====================================");
+
+    // Publish a final "going to sleep" status if MQTT is connected
+    if (_mqtt.isConnected())
+    {
+        char buffer[256];
+        StaticJsonDocument<256> doc;
+        doc["device_id"] = MQTT_DEVICE_ID;
+        doc["event"]     = "deep_sleep";
+        doc["uptime_s"]  = millis() / 1000;
+
+        size_t written = serializeJson(doc, buffer, sizeof(buffer));
+        if (written > 0)
+        {
+            char topic[MQTTManager::MAX_TOPIC_LEN];
+            _mqtt.getTelemetryTopic(topic, sizeof(topic));
+            _mqtt.publish(topic, buffer);
+        }
+
+        // Give MQTT time to send the message
+        delay(200);
+
+        // Disconnect MQTT gracefully
+        _mqtt.disconnect();
+    }
+
+    // Disconnect WiFi
+    _wifi.disconnect();
+
+    // Remove watchdog before sleeping (otherwise it triggers a reboot)
+    esp_task_wdt_delete(NULL);
+
+    // Flush serial output
+    Serial.flush();
+    delay(100);
+
+    LOG_INFO(TAG, "Good night! Waiting for flow pulse on GPIO %d...", (int)WAKEUP_PIN);
+    Serial.flush();
+
+    // Enter deep sleep — only ext0 wake-up will bring us back
+    esp_deep_sleep_start();
 }

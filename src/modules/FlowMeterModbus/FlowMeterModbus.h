@@ -15,15 +15,16 @@
  * │ Reg    │ Parameter        │ Type  │ Unit                  │
  * ├────────┼──────────────────┼───────┼───────────────────────┤
  * │ 0-1    │ Temperature      │ Float │ °C                    │
- * │ 2-3    │ Inst. Flow       │ Float │ m³/h                  │
+ * │ 2-3    │ Inst. Flow       │ Float │ L/min                 │
  * │ 4-5    │ Flow Velocity    │ Float │ m/s                   │
  * │ 6-7    │ Frequency        │ Float │ Hz                    │
- * │ 8-9    │ Cumul. Flow High │ Float │                       │
- * │ 10-11  │ Cumul. Flow Low  │ Float │                       │
+ * │ 8-9    │ Cumul. Flow High │ Float │ Liters (high part)    │
+ * │ 10-11  │ Cumul. Flow Low  │ Float │ Liters (low part)     │
  * │ 12-13  │ Flow Unit        │ Float │ Unit code             │
  * └────────┴──────────────────┴───────┴───────────────────────┘
  *
  * Float byte order: 3412 (register word swap)
+ * NOTE: Sensor is configured to output directly in Liters.
  * ============================================================
  */
 
@@ -34,12 +35,12 @@ public:
     struct MeterData
     {
         float temperature;      // °C
-        float flowRate;         // m³/h (or other depending on unit)
+        float flowRate;         // L/min (sensor configured for liters)
         float velocity;         // m/s
         float frequency;        // Hz
-        float cumulativeHigh;   
-        float cumulativeLow;
-        float totalFlow;        // Calculated: high * 100 + low
+        float cumulativeHigh;   // High part of cumulative (liters)
+        float cumulativeLow;    // Low part of cumulative (liters)
+        float totalLiters;      // Calculated: high * 100 + low (liters)
         float flowUnitCode;     
         String flowUnitStr;     // Readable string
         bool  valid;            // true if last read succeeded
@@ -75,12 +76,12 @@ public:
     bool clearCumulative();
 
     /**
-     * @brief Get flow rate in L/min.
+     * @brief Get flow rate in L/min (direct from sensor, no conversion).
      */
     float getFlowLPM() const;
 
     /**
-     * @brief Get total cumulative flow in liters.
+     * @brief Get total cumulative flow in liters (direct from sensor, no conversion).
      */
     double getCumulativeLiters() const;
 

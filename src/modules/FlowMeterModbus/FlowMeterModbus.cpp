@@ -83,10 +83,10 @@ bool FlowMeterModbus::update()
     _data.velocity = 0.0f;
     _data.frequency = 0.0f;
     _data.flowUnitCode = 0.0f;
-    _data.flowUnitStr = "m³"; // default assumption since we don't read it
+    _data.flowUnitStr = "L"; // Sensor configured for liters
 
-    // Calculate total cumulative flow
-    _data.totalFlow = (_data.cumulativeHigh * 100.0f) + _data.cumulativeLow;
+    // Calculate total cumulative flow (already in liters)
+    _data.totalLiters = (_data.cumulativeHigh * 100.0f) + _data.cumulativeLow;
     
     _data.valid = true;
 
@@ -95,7 +95,7 @@ bool FlowMeterModbus::update()
     LOG_DEBUG(TAG, "Instantaneous Flow: %.3f %s", _data.flowRate, _data.flowUnitStr.c_str());
     LOG_DEBUG(TAG, "Flow Velocity:      %.2f m/s", _data.velocity);
     LOG_DEBUG(TAG, "Frequency:          %.1f Hz", _data.frequency);
-    LOG_DEBUG(TAG, "Cumulative Flow:    %.3f m³", _data.totalFlow);
+    LOG_DEBUG(TAG, "Cumulative Flow:    %.3f L", _data.totalLiters);
     LOG_DEBUG(TAG, "Flow Unit:          %s", _data.flowUnitStr.c_str());
 
     return true;
@@ -112,19 +112,14 @@ const FlowMeterModbus::MeterData& FlowMeterModbus::getData() const
 
 float FlowMeterModbus::getFlowLPM() const
 {
-    // If unit is already L/min, return it directly. 
-    // Otherwise assume m³/h and convert.
-    int code = (int)(_data.flowUnitCode + 0.5f);
-    if (code == 1) return _data.flowRate; 
-    
-    // Convert m³/h to L/min
-    return _data.flowRate * 16.6667f;
+    // Sensor is configured to output directly in L/min — no conversion needed
+    return _data.flowRate;
 }
 
 double FlowMeterModbus::getCumulativeLiters() const
 {
-    // Convert m³ to Liters
-    return (double)_data.totalFlow * 1000.0;
+    // Sensor is configured to output directly in liters — no conversion needed
+    return (double)_data.totalLiters;
 }
 
 bool FlowMeterModbus::isOnline() const

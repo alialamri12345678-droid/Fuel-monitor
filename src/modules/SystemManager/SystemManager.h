@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <esp_task_wdt.h>
+#include <esp_sleep.h>
 
 #include "../DeliveryManager/DeliveryManager.h"
 #include "../WiFiManager/WiFiManager.h"
@@ -24,7 +25,7 @@
  *  - Run the main non-blocking loop with millis-based scheduling
  *  - Route data between modules
  *  - Handle MQTT callbacks and command routing
- *  - HMAC-SHA256 sign all telemetry payloads
+ *  - Manage deep sleep for battery conservation
  * ============================================================
  */
 
@@ -36,9 +37,10 @@ public:
 
     /**
      * @brief Initialize all modules. Called once in setup().
+     * @param wakeupCause The reason the ESP32 woke up (deep sleep or power-on).
      * @return true if all critical modules initialized.
      */
-    bool begin();
+    bool begin(esp_sleep_wakeup_cause_t wakeupCause = ESP_SLEEP_WAKEUP_UNDEFINED);
 
     /**
      * @brief Main non-blocking update loop. Called in loop().
@@ -71,6 +73,19 @@ private:
 
     // Sequence number for HMAC-signed payloads (persisted to NVS)
     unsigned long _sequenceNumber;
+
+    // Wake-up cause (deep sleep vs power-on)
+    esp_sleep_wakeup_cause_t _wakeupCause;
+
+    // ========================================================
+    //  Deep Sleep State
+    // ========================================================
+
+    // Timestamp of the last detected non-zero flow
+    unsigned long _lastFlowDetectedMs;
+
+    // Whether any flow has been detected since wake-up
+    bool _flowDetectedSinceWakeup;
 
     // ========================================================
     //  Scheduling Timers (millis-based)
@@ -111,6 +126,13 @@ private:
     void publishStatus();
     void publishDeliveryRecord(const DeliveryRecord& record);
     void handleDeliveryCompletion();
+
+    // ========================================================
+    //  Deep Sleep
+    // ========================================================
+
+    void checkSleepCondition();
+    void enterDeepSleep();
 
     // ========================================================
     //  JSON Serialization

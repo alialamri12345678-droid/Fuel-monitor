@@ -83,6 +83,20 @@
 #define MQTT_TOPIC_PREFIX       "diesel/device"
 
 // ============================================================
+//  Deep Sleep Configuration
+// ============================================================
+
+// RTC-capable GPIO for ext0 wake-up from flowmeter pulse output
+#define WAKEUP_PIN              GPIO_NUM_33
+
+// Seconds after flow stops before entering deep sleep
+#define DEEP_SLEEP_GRACE_PERIOD_S   60
+
+// Seconds after wake-up with no flow before going back to sleep
+// (handles false wake-ups / noise on the pulse line)
+#define DEEP_SLEEP_IDLE_TIMEOUT_S   60
+
+// ============================================================
 //  Serial / Debug
 // ============================================================
 
