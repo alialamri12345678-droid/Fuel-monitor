@@ -3,6 +3,7 @@
 #include "../../utils/Logger.h"
 
 #include <Preferences.h>
+#include <time.h>
 
 static const char* TAG = "Delivery";
 
@@ -187,13 +188,24 @@ void DeliveryManager::startDelivery()
     _deliveryStartMs = millis();
     _belowThresholdActive = false;
 
-    // Use uptime as start timestamp
-    unsigned long uptimeSec = millis() / 1000;
-    snprintf(_lastRecord.startTime, sizeof(_lastRecord.startTime),
-             "uptime:%lu", uptimeSec);
+    // Use NTP time if available, otherwise fall back to uptime
+    time_t now = time(nullptr);
+    struct tm* timeInfo = localtime(&now);
+
+    if (timeInfo && timeInfo->tm_year >= (2024 - 1900))
+    {
+        strftime(_lastRecord.startTime, sizeof(_lastRecord.startTime),
+                 "%Y-%m-%d %H:%M:%S", timeInfo);
+    }
+    else
+    {
+        unsigned long uptimeSec = millis() / 1000;
+        snprintf(_lastRecord.startTime, sizeof(_lastRecord.startTime),
+                 "uptime:%lu", uptimeSec);
+    }
 
     LOG_INFO(TAG, "=== DELIVERY STARTED ===");
-    LOG_INFO(TAG, "Start uptime: %lu s", uptimeSec);
+    LOG_INFO(TAG, "Start time: %s", _lastRecord.startTime);
 }
 
 void DeliveryManager::completeDelivery()
@@ -209,9 +221,21 @@ void DeliveryManager::completeDelivery()
     // Build delivery record
     _lastRecord.deliveryId = _deliveryCount;
 
-    unsigned long uptimeSec = millis() / 1000;
-    snprintf(_lastRecord.endTime, sizeof(_lastRecord.endTime),
-             "uptime:%lu", uptimeSec);
+    // Use NTP time if available, otherwise fall back to uptime
+    time_t now = time(nullptr);
+    struct tm* timeInfo = localtime(&now);
+
+    if (timeInfo && timeInfo->tm_year >= (2024 - 1900))
+    {
+        strftime(_lastRecord.endTime, sizeof(_lastRecord.endTime),
+                 "%Y-%m-%d %H:%M:%S", timeInfo);
+    }
+    else
+    {
+        unsigned long uptimeSec = millis() / 1000;
+        snprintf(_lastRecord.endTime, sizeof(_lastRecord.endTime),
+                 "uptime:%lu", uptimeSec);
+    }
 
     _lastRecord.durationSeconds = durationSec;
     _lastRecord.totalLiters = _deliveryLiters;
@@ -220,6 +244,8 @@ void DeliveryManager::completeDelivery()
 
     LOG_INFO(TAG, "=== DELIVERY COMPLETED ===");
     LOG_INFO(TAG, "  ID:        %lu", (unsigned long)_lastRecord.deliveryId);
+    LOG_INFO(TAG, "  Start:     %s", _lastRecord.startTime);
+    LOG_INFO(TAG, "  End:       %s", _lastRecord.endTime);
     LOG_INFO(TAG, "  Duration:  %lu seconds", (unsigned long)durationSec);
     LOG_INFO(TAG, "  Volume:    %.2f liters", _lastRecord.totalLiters);
 

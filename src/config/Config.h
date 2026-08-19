@@ -52,11 +52,12 @@
 // Sensor read + delivery state machine update
 #define SENSOR_READ_INTERVAL_MS     100
 
-// MQTT live data publish interval
-#define MQTT_PUBLISH_INTERVAL_MS    1000
+// ============================================================
+//  Event History
+// ============================================================
 
-// System status publish interval
-#define STATUS_PUBLISH_INTERVAL_MS  30000
+// Maximum number of delivery events stored in NVS
+#define MAX_EVENT_HISTORY           5
 
 // ============================================================
 //  WiFi Configuration
@@ -90,11 +91,11 @@
 #define WAKEUP_PIN              GPIO_NUM_33
 
 // Seconds after flow stops before entering deep sleep
-#define DEEP_SLEEP_GRACE_PERIOD_S   60
+#define DEEP_SLEEP_GRACE_PERIOD_S   9000
 
 // Seconds after wake-up with no flow before going back to sleep
 // (handles false wake-ups / noise on the pulse line)
-#define DEEP_SLEEP_IDLE_TIMEOUT_S   60
+#define DEEP_SLEEP_IDLE_TIMEOUT_S   9000
 
 // ============================================================
 //  Serial / Debug

@@ -1,0 +1,56 @@
+--- Terminal on /dev/ttyACM1 | 9600 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀QTT] Device ID: fuel_monitor_firmware
+[863 ms] [INFO] [MQTT] Client ID: fuel_monitor_firmware
+[863 ms] [INFO] [System] Watchdog timer initialized (10s)
+[986 ms] [INFO] [System] Deep sleep ext0 wake-up configured on GPIO 33 (Active LOW)
+[1108 ms] [INFO] [System] Initiating WiFi connection...
+[1205 ms] [INFO] [WiFi] Connecting to AliAmri...
+[1220 ms] [INFO] [System] ====================================
+[1221 ms] [INFO] [System]   System Ready
+[1343 ms] [INFO] [System] ====================================
+[1343 ms] [INFO] [SYSTEM] Free Heap: 233456 bytes
+[1494 ms] [INFO] [Modbus] Communication restored
+[1637 ms] [INFO] [WiFi] Associated with AP
+[1880 ms] [INFO] [WiFi] IP address acquired
+[1881 ms] [INFO] [WiFi] Connected. IP: 172.20.10.7
+[4937 ms] [INFO] [MQTT] Attempting TLS connection...
+[7088 ms] [INFO] [MQTT] Connected (TLS) as fuel_monitor_firmware
+[7090 ms] [INFO] [System] Subscribing to command topics...
+[7092 ms] [INFO] [MQTT] Subscribed: fuel_monitor_command
+[7243 ms] [INFO] [System] Pulse: idle | Cum: 4584.991 L | State: IDLE
+[12243 ms] [INFO] [System] Pulse: idle | Cum: 4584.991 L | State: IDLE
+[17243 ms] [INFO] [System] Pulse: idle | Cum: 4584.991 L | State: IDLE
+[22243 ms] [INFO] [System] Pulse: idle | Cum: 4584.991 L | State: IDLE
+[27243 ms] [INFO] [System] Pulse: idle | Cum: 4584.991 L | State: IDLE
+[32243 ms] [INFO] [System] Pulse: idle | Cum: 4584.991 L | State: IDLE
+[37243 ms] [INFO] [System] Pulse: idle | Cum: 4584.991 L | State: IDLE
+[42315 ms] [INFO] [System] Pulse: idle | Cum: 4584.991 L | State: IDLE
+[47315 ms] [INFO] [System] Pulse: idle | Cum: 4584.991 L | State: IDLE
+[52315 ms] [INFO] [System] Pulse: idle | Cum: 4584.991 L | State: IDLE
+[54243 ms] [INFO] [Delivery] === DELIVERY STARTED ===
+[54243 ms] [INFO] [Delivery] Start time: 2026-08-19 16:37:38
+[55369 ms] [WARNING] [Modbus] Error code: 0xE0
+[55459 ms] [WARNING] [Modbus] Error code: 0xE0
+[55492 ms] [WARNING] [Modbus] Error code: 0xE0
+[55492 ms] [WARNING] [FlowModbus] Failed to read holding registers
+[56257 ms] [WARNING] [Modbus] Error code: 0xE0
+[56299 ms] [WARNING] [Modbus] Error code: 0xE0
+[56299 ms] [ERROR] [Modbus] Device offline after 5 consecutive failures
+[56432 ms] [WARNING] [Modbus] Error code: 0xE0
+[56432 ms] [WARNING] [FlowModbus] Failed to read holding registers
+[57392 ms] [WARNING] [Modbus] Error code: 0xE0
+[59407 ms] [WARNING] [Modbus] Response timeout (consecutive: 8)
+[60960 ms] [WARNING] [Modbus] Error code: 0xE0
+[60960 ms] [WARNING] [FlowModbus] Failed to read holding registers
+[60960 ms] [INFO] [System] Pulse: idle | Cum: 4585.577 L | State: RUNNING
+[61135 ms] [WARNING] [Modbus] Error code: 0xE0
+[63150 ms] [WARNING] [Modbus] Response timeout (consecutive: 11)
+[65165 ms] [WARNING] [Modbus] Response timeout (consecutive: 12)
+[65165 ms] [WARNING] [FlowModbus] Failed to read holding registers
+[67298 ms] [WARNING] [Modbus] Response timeout (consecutive: 13)
+[67330 ms] [INFO] [Modbus] Communication restored
+[67330 ms] [INFO] [System] Pulse: idle | Cum: 4892.773 L | State: RUNNING
+[72355 ms] [INFO] [System] Pulse: idle | Cum: 4947.191 L | State: RUNNING

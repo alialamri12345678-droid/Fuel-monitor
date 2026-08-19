@@ -7,7 +7,6 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <time.h>
-#include "mbedtls/md.h"
 
 static const char* TAG = "System";
 
@@ -30,14 +29,13 @@ SystemManager::SystemManager()
       _lastModbusPoll(0),
       _initialized(false),
       _mqttSubscribed(false),
-      _sessionTotalLiters(0.0f),
-      _sequenceNumber(1),
       _wakeupCause(ESP_SLEEP_WAKEUP_UNDEFINED),
+      _hasPendingEvent(false),
+      _eventPublished(false),
       _lastFlowDetectedMs(0),
       _flowDetectedSinceWakeup(false),
       _lastSensorRead(0),
-      _lastMqttPublish(0),
-      _lastStatusPublish(0)
+      _lastSerialLog(0)
 {
     _instance = this;
 }
@@ -87,6 +85,7 @@ bool SystemManager::begin(esp_sleep_wakeup_cause_t wakeupCause)
     // Configure ext0 deep sleep wake-up on flowmeter pulse pin
     // Wake on LOW level (NPN open-collector pulls to GND when active)
     esp_sleep_enable_ext0_wakeup(WAKEUP_PIN, 0);
+    pinMode(WAKEUP_PIN, INPUT_PULLUP);  // Also use as digital input while awake
     LOG_INFO(TAG, "Deep sleep ext0 wake-up configured on GPIO %d (Active LOW)", (int)WAKEUP_PIN);
 
     // Initialize flow tracking
@@ -97,11 +96,7 @@ bool SystemManager::begin(esp_sleep_wakeup_cause_t wakeupCause)
     connectMQTT();
     subscribeTopics();
 
-    // Load persisted state from NVS
-    loadSessionTotal();
-    loadSequenceNumber();
-
-    // Configure NTP for unix timestamps
+    // Configure NTP for timestamps
     configTzTime("UTC0", "pool.ntp.org");
 
     _initialized = true;
@@ -171,7 +166,7 @@ void SystemManager::subscribeTopics()
 }
 
 // ============================================================
-//  Main Loop — Fully Non-blocking
+//  Main Loop — Event-Based, Non-blocking
 // ============================================================
 
 void SystemManager::update()
@@ -214,28 +209,18 @@ void SystemManager::update()
     }
 
     // --------------------------------------------------------
-    //  4. MQTT telemetry publish (every 1 second)
-    // --------------------------------------------------------
-    if (timerExpired(_lastMqttPublish, MQTT_PUBLISH_INTERVAL_MS))
-    {
-        publishLiveData();
-    }
-
-    // --------------------------------------------------------
-    //  5. Status publish (every 30 seconds)
-    // --------------------------------------------------------
-    if (timerExpired(_lastStatusPublish, STATUS_PUBLISH_INTERVAL_MS))
-    {
-        publishStatus();
-    }
-
-    // --------------------------------------------------------
-    //  6. Delivery completion handling
+    //  4. Delivery completion handling
     // --------------------------------------------------------
     handleDeliveryCompletion();
 
     // --------------------------------------------------------
-    //  7. Deep sleep check (battery conservation)
+    //  5. Publish pending event (retry until success)
+    // --------------------------------------------------------
+    publishPendingEvent();
+
+    // --------------------------------------------------------
+    //  6. Deep sleep check (battery conservation)
+    //     Only sleeps after pending event has been published
     // --------------------------------------------------------
     checkSleepCondition();
 }
@@ -270,126 +255,216 @@ void SystemManager::readSensors()
         _flowModbus.update();
     }
 
-    // Track flow activity for deep sleep decisions
-    float flowLPM = _flowModbus.getFlowLPM();
-    if (flowLPM > 0.1f)  // Small threshold to ignore noise
+    // Detect flow from frequency pulse on GPIO 33
+    // NPN open-collector: LOW = flow active, HIGH = no flow
+    bool flowActive = (digitalRead(WAKEUP_PIN) == LOW);
+
+    // Track flow activity for deep sleep and delivery detection
+    if (flowActive)
     {
         _lastFlowDetectedMs = millis();
         _flowDetectedSinceWakeup = true;
     }
 
-    // Feed delivery manager with Modbus flow rate (L/min)
-    _delivery.update(flowLPM);
-}
+    // Feed delivery manager with a synthetic flow rate based on GPIO state
+    // (Modbus registers don't provide instantaneous flow rate for this sensor)
+    float syntheticFlowLPM = flowActive ? (DELIVERY_START_THRESHOLD_LPM + 1.0f) : 0.0f;
+    _delivery.update(syntheticFlowLPM);
 
-void SystemManager::publishLiveData()
-{
-    const auto& md = _flowModbus.getData();
-    LOG_INFO(TAG, "Live: %.1f Hz | %.2f L/min | %.1f°C | "
-                  "%.2f m/s | Cum: %.3f L | State: %s",
-             md.frequency,
-             _flowModbus.getFlowLPM(),
-             md.temperature,
-             md.velocity,
-             md.totalLiters,
-             deliveryStateToString(_delivery.getState()));
-
-    if (!_mqtt.isConnected()) return;
-
-    char buffer[256];
-    if (serializeTelemetry(buffer, sizeof(buffer)))
+    // Periodic serial log (every 5 seconds)
+    if (timerExpired(_lastSerialLog, 5000))
     {
-        char topic[MQTTManager::MAX_TOPIC_LEN];
-        _mqtt.getTelemetryTopic(topic, sizeof(topic));
-        _mqtt.publish(topic, buffer);
-    }
-}
-
-void SystemManager::publishStatus()
-{
-    if (!_mqtt.isConnected()) return;
-
-    char buffer[512];
-    if (serializeStatus(buffer, sizeof(buffer)))
-    {
-        char topic[MQTTManager::MAX_TOPIC_LEN];
-        _mqtt.getTelemetryTopic(topic, sizeof(topic));
-        _mqtt.publish(topic, buffer);
-    }
-}
-
-void SystemManager::publishDeliveryRecord(const DeliveryRecord& record)
-{
-    // Delivery data is included in the telemetry stream.
-    // Publish a one-time telemetry message with the delivery totals.
-    if (!_mqtt.isConnected()) return;
-
-    char buffer[256];
-    if (serializeTelemetry(buffer, sizeof(buffer)))
-    {
-        char topic[MQTTManager::MAX_TOPIC_LEN];
-        _mqtt.getTelemetryTopic(topic, sizeof(topic));
-        _mqtt.publish(topic, buffer);
+        const auto& md = _flowModbus.getData();
+        LOG_INFO(TAG, "Pulse: %s | Cum: %.3f L | State: %s",
+                 flowActive ? "ACTIVE" : "idle",
+                 md.totalLiters,
+                 deliveryStateToString(_delivery.getState()));
     }
 }
 
 void SystemManager::handleDeliveryCompletion()
 {
-    if (_delivery.hasNewDelivery())
+    if (!_delivery.hasNewDelivery()) return;
+
+    const DeliveryRecord& record = _delivery.getLastDelivery();
+
+    LOG_INFO(TAG, "=== EVENT: Delivery Complete ===");
+    LOG_INFO(TAG, "  Start:  %s", record.startTime);
+    LOG_INFO(TAG, "  Stop:   %s", record.endTime);
+    LOG_INFO(TAG, "  Volume: %.2f liters", record.totalLiters);
+
+    // Read the actual cumulative volume from the sensor
+    double sensorVolume = _flowModbus.getCumulativeLiters();
+    LOG_INFO(TAG, "  Sensor cumulative: %.2f liters", sensorVolume);
+
+    // Store the pending event (use sensor volume for accuracy)
+    _pendingEvent = record;
+    _pendingEvent.totalLiters = (float)sensorVolume;
+    _hasPendingEvent = true;
+    _eventPublished = false;
+
+    // Save to NVS event history (circular buffer of 5)
+    saveEventToHistory(_pendingEvent);
+
+    // Clear the sensor's cumulative counter
+    _flowModbus.clearCumulative();
+    LOG_INFO(TAG, "Sensor cumulative cleared");
+}
+
+void SystemManager::publishPendingEvent()
+{
+    if (!_hasPendingEvent || _eventPublished) return;
+
+    if (!_mqtt.isConnected())
     {
-        const DeliveryRecord& record = _delivery.getLastDelivery();
+        // Keep retrying — WiFi/MQTT reconnect happens in the main loop
+        return;
+    }
 
-        // Update session total and persist to NVS
-        _sessionTotalLiters += record.totalLiters;
-        saveSessionTotal();
+    char buffer[256];
+    if (serializeEvent(_pendingEvent, buffer, sizeof(buffer)))
+    {
+        char topic[MQTTManager::MAX_TOPIC_LEN];
+        _mqtt.getTelemetryTopic(topic, sizeof(topic));
 
-        // Publish delivery via telemetry
-        publishDeliveryRecord(record);
+        if (_mqtt.publish(topic, buffer))
+        {
+            LOG_INFO(TAG, "Event published successfully!");
+            _eventPublished = true;
+            _hasPendingEvent = false;
+        }
+        else
+        {
+            LOG_WARNING(TAG, "Event publish failed, will retry...");
+        }
     }
 }
 
+// ============================================================
+//  Event History (NVS — Circular Buffer of 5)
+// ============================================================
 
+static const char* EVENTS_NAMESPACE = "events";
+
+void SystemManager::saveEventToHistory(const DeliveryRecord& record)
+{
+    Preferences prefs;
+    prefs.begin(EVENTS_NAMESPACE, false);
+
+    // Read current write index and count
+    uint8_t wrIdx = prefs.getUChar("wr_idx", 0);
+    uint8_t count = prefs.getUChar("count", 0);
+
+    // Serialize event to a compact JSON string
+    char eventJson[128];
+    StaticJsonDocument<128> doc;
+    doc["s"] = record.startTime;
+    doc["e"] = record.endTime;
+    doc["v"] = record.totalLiters;
+    serializeJson(doc, eventJson, sizeof(eventJson));
+
+    // Store at current write position
+    char key[4];
+    snprintf(key, sizeof(key), "e%d", wrIdx);
+    prefs.putString(key, eventJson);
+
+    // Advance write index (circular)
+    wrIdx = (wrIdx + 1) % MAX_EVENT_HISTORY;
+    prefs.putUChar("wr_idx", wrIdx);
+
+    // Update count (max 5)
+    if (count < MAX_EVENT_HISTORY)
+    {
+        count++;
+        prefs.putUChar("count", count);
+    }
+
+    prefs.end();
+
+    LOG_INFO(TAG, "Event saved to history (slot %d, total %d)",
+             (wrIdx == 0 ? MAX_EVENT_HISTORY - 1 : wrIdx - 1), count);
+}
+
+void SystemManager::publishEventHistory()
+{
+    if (!_mqtt.isConnected())
+    {
+        LOG_WARNING(TAG, "Cannot publish history — MQTT not connected");
+        return;
+    }
+
+    Preferences prefs;
+    prefs.begin(EVENTS_NAMESPACE, true);  // Read-only
+
+    uint8_t count = prefs.getUChar("count", 0);
+    uint8_t wrIdx = prefs.getUChar("wr_idx", 0);
+
+    LOG_INFO(TAG, "Publishing event history (%d events)", count);
+
+    // Build JSON array of events
+    StaticJsonDocument<1024> doc;
+    doc["event"] = "history";
+    doc["count"] = count;
+    JsonArray events = doc.createNestedArray("events");
+
+    // Read events in chronological order (oldest first)
+    for (uint8_t i = 0; i < count; i++)
+    {
+        // Calculate the read index (oldest event first)
+        uint8_t readIdx;
+        if (count < MAX_EVENT_HISTORY)
+        {
+            readIdx = i;  // Haven't wrapped yet
+        }
+        else
+        {
+            readIdx = (wrIdx + i) % MAX_EVENT_HISTORY;  // Start from oldest
+        }
+
+        char key[4];
+        snprintf(key, sizeof(key), "e%d", readIdx);
+        String eventJson = prefs.getString(key, "");
+
+        if (eventJson.length() > 0)
+        {
+            StaticJsonDocument<128> eventDoc;
+            if (deserializeJson(eventDoc, eventJson) == DeserializationError::Ok)
+            {
+                JsonObject ev = events.createNestedObject();
+                ev["start"]         = eventDoc["s"].as<String>();
+                ev["stop"]          = eventDoc["e"].as<String>();
+                ev["volume_liters"] = eventDoc["v"].as<float>();
+            }
+        }
+    }
+
+    prefs.end();
+
+    // Publish
+    char buffer[1024];
+    size_t written = serializeJson(doc, buffer, sizeof(buffer));
+    if (written > 0 && written < sizeof(buffer))
+    {
+        char topic[MQTTManager::MAX_TOPIC_LEN];
+        _mqtt.getTelemetryTopic(topic, sizeof(topic));
+        _mqtt.publish(topic, buffer);
+        LOG_INFO(TAG, "Event history published");
+    }
+}
 
 // ============================================================
 //  JSON Serialization
 // ============================================================
 
-bool SystemManager::serializeTelemetry(char* buffer, size_t len)
+bool SystemManager::serializeEvent(const DeliveryRecord& record,
+                                    char* buffer, size_t len)
 {
     StaticJsonDocument<256> doc;
 
-    float totalVol = _flowModbus.getCumulativeLiters();
-    doc["total_volume"] = totalVol;
-
-    size_t written = serializeJson(doc, buffer, len);
-    return (written > 0 && written < len);
-}
-
-bool SystemManager::serializeStatus(char* buffer, size_t len)
-{
-    StaticJsonDocument<512> doc;
-
-    doc["device_id"]    = MQTT_DEVICE_ID;
-    doc["online"]       = true;
-    doc["uptime_s"]     = millis() / 1000;
-
-    // WiFi status
-    JsonObject wifi = doc.createNestedObject("wifi");
-    wifi["connected"]   = _wifi.isConnected();
-    wifi["rssi"]        = _wifi.getRSSI();
-    wifi["quality"]     = _wifi.getSignalQuality();
-    wifi["ip"]          = _wifi.getIPAddress().toString();
-
-    // Modbus status
-    doc["modbus_online"] = _flowModbus.isOnline();
-    doc["free_heap"]     = ESP.getFreeHeap();
-    doc["deliveries"]    = _delivery.getDeliveryCount();
-    doc["seq"]           = _sequenceNumber;
-
-    // Active errors
-    char errStr[128];
-    ErrorHandler::getActiveErrorsString(errStr, sizeof(errStr));
-    doc["errors"] = errStr;
+    doc["event"]         = "delivery";
+    doc["start"]         = record.startTime;
+    doc["stop"]          = record.endTime;
+    doc["volume_liters"] = record.totalLiters;
 
     size_t written = serializeJson(doc, buffer, len);
     return (written > 0 && written < len);
@@ -448,16 +523,35 @@ void SystemManager::handleMQTTMessage(
 
         // Handle commands
         const char* cmd = doc["command"] | "";
-        const char* clearCmd = doc["clear_command"] | "";
 
-        if (strcmp(cmd, "CLEAR") == 0 || strcmp(clearCmd, "CLEAR") == 0)
+        if (strcmp(cmd, "CLEAR") == 0)
         {
             _flowModbus.clearCumulative();
             LOG_INFO(TAG, "Cumulative flow cleared via MQTT command");
         }
+        else if (strcmp(cmd, "LAST") == 0)
+        {
+            LOG_INFO(TAG, "LAST command received — publishing event history");
+            publishEventHistory();
+        }
         else if (strcmp(cmd, "status") == 0)
         {
-            publishStatus();
+            LOG_INFO(TAG, "Status command received");
+            // Minimal status response
+            char buffer[256];
+            StaticJsonDocument<256> statusDoc;
+            statusDoc["device_id"] = MQTT_DEVICE_ID;
+            statusDoc["online"]    = true;
+            statusDoc["uptime_s"]  = millis() / 1000;
+            statusDoc["free_heap"] = ESP.getFreeHeap();
+
+            size_t written = serializeJson(statusDoc, buffer, sizeof(buffer));
+            if (written > 0)
+            {
+                char statusTopic[MQTTManager::MAX_TOPIC_LEN];
+                _mqtt.getTelemetryTopic(statusTopic, sizeof(statusTopic));
+                _mqtt.publish(statusTopic, buffer);
+            }
         }
         else
         {
@@ -471,63 +565,17 @@ void SystemManager::handleMQTTMessage(
 }
 
 // ============================================================
-//  NVS Persistence
-// ============================================================
-
-static const char* NVS_NAMESPACE = "diesel";
-static const char* NVS_KEY_TOTAL = "total_liters";
-static const char* NVS_KEY_SEQ   = "seq_num";
-
-void SystemManager::loadSessionTotal()
-{
-    Preferences prefs;
-    prefs.begin(NVS_NAMESPACE, true);
-    _sessionTotalLiters = prefs.getFloat(NVS_KEY_TOTAL, 0.0f);
-    prefs.end();
-
-    LOG_INFO(TAG, "Loaded session total from NVS: %.2f liters",
-             _sessionTotalLiters);
-}
-
-void SystemManager::saveSessionTotal()
-{
-    Preferences prefs;
-    prefs.begin(NVS_NAMESPACE, false);
-    prefs.putFloat(NVS_KEY_TOTAL, _sessionTotalLiters);
-    prefs.end();
-
-    LOG_DEBUG(TAG, "Saved session total to NVS: %.2f liters",
-              _sessionTotalLiters);
-}
-
-void SystemManager::loadSequenceNumber()
-{
-    Preferences prefs;
-    prefs.begin(NVS_NAMESPACE, true);
-    _sequenceNumber = prefs.getULong(NVS_KEY_SEQ, 1);
-    prefs.end();
-
-    LOG_INFO(TAG, "Loaded sequence number from NVS: %lu",
-             _sequenceNumber);
-}
-
-void SystemManager::saveSequenceNumber()
-{
-    Preferences prefs;
-    prefs.begin(NVS_NAMESPACE, false);
-    prefs.putULong(NVS_KEY_SEQ, _sequenceNumber);
-    prefs.end();
-
-    LOG_DEBUG(TAG, "Saved sequence number to NVS: %lu",
-              _sequenceNumber);
-}
-
-// ============================================================
 //  Deep Sleep
 // ============================================================
 
 void SystemManager::checkSleepCondition()
 {
+    // Do NOT sleep if there is a pending event that hasn't been published
+    if (_hasPendingEvent && !_eventPublished)
+    {
+        return;
+    }
+
     unsigned long now = millis();
     unsigned long idleDuration = now - _lastFlowDetectedMs;
     unsigned long idleSeconds = idleDuration / 1000;

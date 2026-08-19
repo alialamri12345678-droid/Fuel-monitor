@@ -1,0 +1,22 @@
+--- Terminal on /dev/ttyACM1 | 9600 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀��Hhu��␂j�u�[INFO] [MQTT] Device ID: fuel_monitor_firmware
+[863 ms] [INFO] [MQTT] Client ID: fuel_monitor_firmware
+[863 ms] [INFO] [System] Watchdog timer initialized (10s)
+[985 ms] [INFO] [System] Deep sleep ext0 wake-up configured on GPIO 33 (Active LOW)
+[1108 ms] [INFO] [System] Initiating WiFi connection...
+[1207 ms] [INFO] [WiFi] Connecting to AliAmri...
+[1223 ms] [INFO] [System] ====================================
+[1223 ms] [INFO] [System]   System Ready
+[1346 ms] [INFO] [WiFi] Associated with AP
+[1347 ms] [INFO] [WiFi] IP address acquired
+[1347 ms] [INFO] [System] ====================================
+[1469 ms] [INFO] [SYSTEM] Free Heap: 232944 bytes
+[1470 ms] [INFO] [WiFi] Connected. IP: 172.20.10.7
+[1621 ms] [INFO] [Modbus] Communication restored
+[4937 ms] [INFO] [MQTT] Attempting TLS connection...
+[7187 ms] [INFO] [MQTT] Connected (TLS) as fuel_monitor_firmware
+[7189 ms] [INFO] [System] Subscribing to command topics...
+[7191 ms] [INFO] [MQTT] Subscribed: fuel_monitor_command

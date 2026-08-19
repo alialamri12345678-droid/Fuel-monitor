@@ -23,8 +23,8 @@
  * Responsibilities:
  *  - Initialize all modules in correct dependency order
  *  - Run the main non-blocking loop with millis-based scheduling
- *  - Route data between modules
- *  - Handle MQTT callbacks and command routing
+ *  - Event-based reporting: publish once per delivery event
+ *  - Store last 5 events in NVS
  *  - Manage deep sleep for battery conservation
  * ============================================================
  */
@@ -37,7 +37,7 @@ public:
 
     /**
      * @brief Initialize all modules. Called once in setup().
-     * @param wakeupCause The reason the ESP32 woke up (deep sleep or power-on).
+     * @param wakeupCause The reason the ESP32 woke up.
      * @return true if all critical modules initialized.
      */
     bool begin(esp_sleep_wakeup_cause_t wakeupCause = ESP_SLEEP_WAKEUP_UNDEFINED);
@@ -68,33 +68,31 @@ private:
     bool _initialized;
     bool _mqttSubscribed;
 
-    // Cumulative total liters (persisted to NVS across reboots)
-    float _sessionTotalLiters;
-
-    // Sequence number for HMAC-signed payloads (persisted to NVS)
-    unsigned long _sequenceNumber;
-
     // Wake-up cause (deep sleep vs power-on)
     esp_sleep_wakeup_cause_t _wakeupCause;
+
+    // ========================================================
+    //  Event Tracking
+    // ========================================================
+
+    // Pending event waiting to be published
+    DeliveryRecord _pendingEvent;
+    bool           _hasPendingEvent;
+    bool           _eventPublished;
 
     // ========================================================
     //  Deep Sleep State
     // ========================================================
 
-    // Timestamp of the last detected non-zero flow
     unsigned long _lastFlowDetectedMs;
-
-    // Whether any flow has been detected since wake-up
-    bool _flowDetectedSinceWakeup;
+    bool          _flowDetectedSinceWakeup;
 
     // ========================================================
     //  Scheduling Timers (millis-based)
     // ========================================================
 
     unsigned long _lastSensorRead;
-    unsigned long _lastMqttPublish;
-    unsigned long _lastStatusPublish;
-
+    unsigned long _lastSerialLog;
     // ========================================================
     //  Initialization Helpers
     // ========================================================
@@ -103,12 +101,6 @@ private:
     void connectNetwork();
     void connectMQTT();
     void subscribeTopics();
-
-    // NVS persistence
-    void loadSessionTotal();
-    void saveSessionTotal();
-    void loadSequenceNumber();
-    void saveSequenceNumber();
 
     // ========================================================
     //  Scheduling
@@ -122,10 +114,15 @@ private:
     // ========================================================
 
     void readSensors();
-    void publishLiveData();
-    void publishStatus();
-    void publishDeliveryRecord(const DeliveryRecord& record);
     void handleDeliveryCompletion();
+    void publishPendingEvent();
+
+    // ========================================================
+    //  Event History (NVS)
+    // ========================================================
+
+    void saveEventToHistory(const DeliveryRecord& record);
+    void publishEventHistory();
 
     // ========================================================
     //  Deep Sleep
@@ -138,8 +135,7 @@ private:
     //  JSON Serialization
     // ========================================================
 
-    bool serializeTelemetry(char* buffer, size_t len);
-    bool serializeStatus(char* buffer, size_t len);
+    bool serializeEvent(const DeliveryRecord& record, char* buffer, size_t len);
 
     // ========================================================
     //  MQTT Callback
