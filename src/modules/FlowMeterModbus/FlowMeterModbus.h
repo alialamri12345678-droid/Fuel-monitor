@@ -81,9 +81,14 @@ public:
     float getFlowLPM() const;
 
     /**
-     * @brief Get total cumulative flow in liters (direct from sensor, no conversion).
+     * @brief Get total cumulative flow (direct from sensor, no conversion).
      */
     double getCumulativeLiters() const;
+
+    /**
+     * @brief Get the unit string read from the sensor (e.g. "L", "m3", "kg").
+     */
+    const String& getUnitStr() const;
 
     /**
      * @brief Check if communication is active.

@@ -275,9 +275,10 @@ void SystemManager::readSensors()
     if (timerExpired(_lastSerialLog, 5000))
     {
         const auto& md = _flowModbus.getData();
-        LOG_INFO(TAG, "Pulse: %s | Cum: %.3f L | State: %s",
+        LOG_INFO(TAG, "Pulse: %s | Cum: %.3f %s | State: %s",
                  flowActive ? "ACTIVE" : "idle",
                  md.totalLiters,
+                 _flowModbus.getUnitStr().c_str(),
                  deliveryStateToString(_delivery.getState()));
     }
 }
@@ -291,11 +292,11 @@ void SystemManager::handleDeliveryCompletion()
     LOG_INFO(TAG, "=== EVENT: Delivery Complete ===");
     LOG_INFO(TAG, "  Start:  %s", record.startTime);
     LOG_INFO(TAG, "  Stop:   %s", record.endTime);
-    LOG_INFO(TAG, "  Volume: %.2f liters", record.totalLiters);
+    LOG_INFO(TAG, "  Volume: %.2f %s", record.totalLiters, _flowModbus.getUnitStr().c_str());
 
     // Read the actual cumulative volume from the sensor
     double sensorVolume = _flowModbus.getCumulativeLiters();
-    LOG_INFO(TAG, "  Sensor cumulative: %.2f liters", sensorVolume);
+    LOG_INFO(TAG, "  Sensor cumulative: %.2f %s", sensorVolume, _flowModbus.getUnitStr().c_str());
 
     // Store the pending event (use sensor volume for accuracy)
     _pendingEvent = record;
@@ -304,7 +305,7 @@ void SystemManager::handleDeliveryCompletion()
     _eventPublished = false;
 
     // Save to NVS event history (circular buffer of 5)
-    saveEventToHistory(_pendingEvent);
+    saveEventToHistory(_pendingEvent, _flowModbus.getUnitStr());
 
     // Clear the sensor's cumulative counter
     _flowModbus.clearCumulative();
@@ -346,7 +347,7 @@ void SystemManager::publishPendingEvent()
 
 static const char* EVENTS_NAMESPACE = "events";
 
-void SystemManager::saveEventToHistory(const DeliveryRecord& record)
+void SystemManager::saveEventToHistory(const DeliveryRecord& record, const String& unit)
 {
     Preferences prefs;
     prefs.begin(EVENTS_NAMESPACE, false);
@@ -356,11 +357,12 @@ void SystemManager::saveEventToHistory(const DeliveryRecord& record)
     uint8_t count = prefs.getUChar("count", 0);
 
     // Serialize event to a compact JSON string
-    char eventJson[128];
-    StaticJsonDocument<128> doc;
+    char eventJson[160];
+    StaticJsonDocument<160> doc;
     doc["s"] = record.startTime;
     doc["e"] = record.endTime;
     doc["v"] = record.totalLiters;
+    doc["u"] = unit;
     serializeJson(doc, eventJson, sizeof(eventJson));
 
     // Store at current write position
@@ -431,9 +433,10 @@ void SystemManager::publishEventHistory()
             if (deserializeJson(eventDoc, eventJson) == DeserializationError::Ok)
             {
                 JsonObject ev = events.createNestedObject();
-                ev["start"]         = eventDoc["s"].as<String>();
-                ev["stop"]          = eventDoc["e"].as<String>();
-                ev["volume_liters"] = eventDoc["v"].as<float>();
+                ev["start"]  = eventDoc["s"].as<String>();
+                ev["stop"]   = eventDoc["e"].as<String>();
+                ev["volume"] = eventDoc["v"].as<float>();
+                ev["unit"]   = eventDoc["u"].as<String>();
             }
         }
     }
@@ -464,7 +467,8 @@ bool SystemManager::serializeEvent(const DeliveryRecord& record,
     doc["event"]         = "delivery";
     doc["start"]         = record.startTime;
     doc["stop"]          = record.endTime;
-    doc["volume_liters"] = record.totalLiters;
+    doc["volume"]        = record.totalLiters;
+    doc["unit"]          = _flowModbus.getUnitStr();
 
     size_t written = serializeJson(doc, buffer, len);
     return (written > 0 && written < len);

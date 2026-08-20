@@ -121,7 +121,7 @@ private:
     //  Event History (NVS)
     // ========================================================
 
-    void saveEventToHistory(const DeliveryRecord& record);
+    void saveEventToHistory(const DeliveryRecord& record, const String& unit);
     void publishEventHistory();
 
     // ========================================================

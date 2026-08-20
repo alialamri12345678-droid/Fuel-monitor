@@ -27,13 +27,16 @@ String FlowMeterModbus::getUnitString(float unitCode)
 {
     int code = (int)(unitCode + 0.5f); // Round float to nearest int
     switch (code) {
-        case 0: return "m³/h";
-        case 1: return "L/min";
-        case 2: return "kg/h";
-        case 3: return "L/h";
-        case 4: return "T/h";
-        case 5: return "kg/min";
-        case 6: return "m³/min";
+        case 0: return "m3";
+        case 1: return "L";
+        case 2: return "kg";
+        case 3: return "L";
+        case 4: return "T";
+        case 5: return "kg";
+        case 6: return "m3";
+        case 7: return "gal";
+        case 8: return "g";
+        case 9: return "g";
         default: return "Unknown";
     }
 }
@@ -45,7 +48,16 @@ String FlowMeterModbus::getUnitString(float unitCode)
 FlowMeterModbus::FlowMeterModbus(ModbusManager& modbus)
     : _modbus(modbus), _slaveID(1)
 {
-    memset(&_data, 0, sizeof(_data));
+    _data.valid = false;
+    _data.temperature = 0.0f;
+    _data.flowRate = 0.0f;
+    _data.velocity = 0.0f;
+    _data.frequency = 0.0f;
+    _data.cumulativeHigh = 0.0f;
+    _data.cumulativeLow = 0.0f;
+    _data.totalLiters = 0.0f;
+    _data.flowUnitCode = 0.0f;
+    _data.flowUnitStr = "Unknown";
 }
 
 void FlowMeterModbus::begin(uint8_t slaveID)
@@ -62,41 +74,37 @@ bool FlowMeterModbus::update()
 {
     _modbus.setSlaveID(_slaveID);
 
-    // Read 4 holding registers starting at address 0x0008 (Cumulative Flow High/Low)
+    // Read cumulative: 4 holding registers from address 8
     if (!_modbus.readHoldingRegisters(8, 4))
     {
         _data.valid = false;
-        LOG_WARNING(TAG, "Failed to read holding registers");
+        LOG_WARNING(TAG, "Failed to read cumulative registers");
         return false;
     }
 
-    // Decode floats (byte order 3412 = register word swap)
     _data.cumulativeHigh = decodeFloat3412(
         _modbus.getRegister(0), _modbus.getRegister(1));
-
     _data.cumulativeLow = decodeFloat3412(
         _modbus.getRegister(2), _modbus.getRegister(3));
+
+    // Read unit: Input Register 0 (FC04) — stored as uint16_t
+    delay(10);  // Small gap between Modbus reads
+    if (_modbus.readInputRegisters(0, 1))
+    {
+        uint16_t unitCode = _modbus.getRegister(0);
+        _data.flowUnitCode = (float)unitCode;
+        _data.flowUnitStr = getUnitString(_data.flowUnitCode);
+    }
 
     // Clear unused fields
     _data.temperature = 0.0f;
     _data.flowRate = 0.0f;
     _data.velocity = 0.0f;
     _data.frequency = 0.0f;
-    _data.flowUnitCode = 0.0f;
-    _data.flowUnitStr = "L"; // Sensor configured for liters
 
-    // Calculate total cumulative flow (already in liters)
+    // Calculate total cumulative flow
     _data.totalLiters = (_data.cumulativeHigh * 100.0f) + _data.cumulativeLow;
-    
     _data.valid = true;
-
-    // Print parsed values
-    LOG_DEBUG(TAG, "Temperature:        %.1f °C", _data.temperature);
-    LOG_DEBUG(TAG, "Instantaneous Flow: %.3f %s", _data.flowRate, _data.flowUnitStr.c_str());
-    LOG_DEBUG(TAG, "Flow Velocity:      %.2f m/s", _data.velocity);
-    LOG_DEBUG(TAG, "Frequency:          %.1f Hz", _data.frequency);
-    LOG_DEBUG(TAG, "Cumulative Flow:    %.3f L", _data.totalLiters);
-    LOG_DEBUG(TAG, "Flow Unit:          %s", _data.flowUnitStr.c_str());
 
     return true;
 }
@@ -120,6 +128,11 @@ double FlowMeterModbus::getCumulativeLiters() const
 {
     // Sensor is configured to output directly in liters — no conversion needed
     return (double)_data.totalLiters;
+}
+
+const String& FlowMeterModbus::getUnitStr() const
+{
+    return _data.flowUnitStr;
 }
 
 bool FlowMeterModbus::isOnline() const

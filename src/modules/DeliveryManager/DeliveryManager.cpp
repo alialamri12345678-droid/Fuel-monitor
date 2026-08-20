@@ -247,7 +247,6 @@ void DeliveryManager::completeDelivery()
     LOG_INFO(TAG, "  Start:     %s", _lastRecord.startTime);
     LOG_INFO(TAG, "  End:       %s", _lastRecord.endTime);
     LOG_INFO(TAG, "  Duration:  %lu seconds", (unsigned long)durationSec);
-    LOG_INFO(TAG, "  Volume:    %.2f liters", _lastRecord.totalLiters);
 
     // Transition to COMPLETED (will auto-return to IDLE on next update)
     _state = DeliveryState::COMPLETED;

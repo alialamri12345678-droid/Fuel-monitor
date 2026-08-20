@@ -1,0 +1,23 @@
+--- Terminal on /dev/ttyACM0 | 9600 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+8cb75  PS      : 0x00060b30  A0      : 0x8015a52c  A1      : 0x3␀␀␀␀␀�␀␀␀␀␀@␀␀␀␀��␀␀␀␀␀␀␀␀␀␀␀␀␀�␀�␀�␀�␀␀␀␀␀␀␀␀␀␀␀␀␀␀��[5615 ms] [WARNING] [Modbus] Response timeout (consecutive: 2)
+[7630 ms] [WARNING] [Modbus] Response timeout (consecutive: 3)
+[7631 ms] [WARNING] [FlowModbus] Failed to read holding registers
+Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled.
+
+Core  1 register dump:
+PC      : 0x4008cb75  PS      : 0x00060b30  A0      : 0x8015a52c  A1      : 0x3ffb1c90  
+A2      : 0x00000000  A3      : 0xfffffffc  A4      : 0x000000ff  A5      : 0x0000ff00  
+A6      : 0x00ff0000  A7      : 0xff000000  A8      : 0x00000000  A9      : 0x3ffb20b4  
+A10     : 0x3ffb20b1  A11     : 0x3f41d35c  A12     : 0x00000003  A13     : 0x00000000  
+A14     : 0x7ff00000  A15     : 0x00000001  SAR     : 0x00000020  EXCCAUSE: 0x0000001c  
+EXCVADDR: 0x00000000  LBEG    : 0x4008cb75  LEND    : 0x4008cb85  LCOUNT  : 0xffffffff  
+
+
+Backtrace: 0x4008cb72:0x3ffb1c90 0x4015a529:0x3ffb1ca0 0x4015f096:0x3ffb1fb0 0x4015f0d2:0x3ffb2040 0x400d6c32:0x3ffb2080 0x400d6da1:0x3ffb21c0 0x400d42b1:0x3ffb2220 0x400d687f:0x3ffb2250 0x400d2dd2:0x3ffb2270 0x400db8c9:0x3ffb2290
+
+
+
+

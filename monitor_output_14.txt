@@ -1,0 +1,15 @@
+--- Terminal on /dev/ttyACM0 | 9600 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+�␀�␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀�␀�␀␀␀�␀␀␀␀�␀␀␀�␀␀␀␀␀␀␀␀␀␀␀␀�␀␀�␀�␀␀␀�␀␀␀␀␀␀�␀␀�␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀�␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀␀�[25393 ms] [WARNING] [Modbus] Response timeout (consecutive: 10)
+
+[29422 ms] [WARNING] [Modbus] Response timeout (consecutive: 12)
+[29423 ms] [WARNING] [FlowModbus] Failed to read cumulative registers
+[29545 ms] [INFO] [System] Pulse: idle | Cum: 0.000 Unknown | State: IDLE
+[31559 ms] [WARNING] [Modbus] Response timeout (consecutive: 13)
+[33574 ms] [WARNING] [Modbus] Response timeout (consecutive: 14)
+[35589 ms] [WARNING] [Modbus] Response timeout (consecutive: 15)
+[35590 ms] [WARNING] [FlowModbus] Failed to read cumulative registers
+[35712 ms] [INFO] [System] Pulse: idle | Cum: 0.000 Unknown | State: IDLE
+[37724 ms] [WARNING] [Modbus] Response timeout (consecutive: 16)
